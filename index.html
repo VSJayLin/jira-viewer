@@ -18,34 +18,14 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .tb-ts{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
 .refresh-btn{margin-left:auto;display:flex;align-items:center;gap:6px;padding:6px 14px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--dim);font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;}
 .refresh-btn:hover{border-color:#0052CC;color:#0052CC;}
-.refresh-btn.loading{opacity:.5;cursor:not-allowed;}
-.refresh-btn svg{width:13px;height:13px;transition:transform .4s;}
+.refresh-btn:disabled{opacity:.5;cursor:not-allowed;}
+.refresh-btn svg{width:13px;height:13px;}
 .refresh-btn.loading svg{animation:spin .7s linear infinite;}
 .wrap{max-width:1140px;margin:0 auto;padding:24px 28px 60px;}
-
-/* Auth */
-.auth-card{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:32px;max-width:520px;margin:60px auto;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-.auth-label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:16px;font-family:'IBM Plex Mono',monospace;}
-.auth-title{font-size:18px;font-weight:500;margin-bottom:6px;}
-.auth-desc{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6;}
-.auth-desc a{color:#0052CC;text-decoration:none;}
-.field-group{margin-bottom:14px;}
-.field-label{font-size:11px;color:var(--dim);margin-bottom:5px;font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;}
-.field-input{width:100%;background:var(--surf2);border:1px solid var(--bdr);border-radius:7px;padding:9px 13px;color:var(--text);font-size:13px;font-family:'IBM Plex Mono',monospace;transition:border-color .15s;outline:none;}
-.field-input:focus{border-color:#0052CC;}
-.field-input::placeholder{color:var(--muted);}
-.load-btn{width:100%;padding:11px;background:#0052CC;border:none;border-radius:7px;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:background .15s;margin-top:6px;}
-.load-btn:hover{background:#0065ff;}
-.load-btn:disabled{opacity:.5;cursor:not-allowed;}
-.err-box{margin-top:14px;padding:10px 14px;background:#ffebe6;border:1px solid #ff8f73;border-radius:6px;font-size:12px;color:#bf2600;display:none;}
-
-/* Stats */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
 .stat{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
 .stat-n{font-size:26px;font-weight:500;font-family:'IBM Plex Mono',monospace;}
 .stat-l{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.06em;}
-
-/* Filter bar */
 .filter-bar{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
 .filter-bar-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
 .filter-bar-title::after{content:'';flex:1;height:1px;background:var(--bdr);}
@@ -63,8 +43,6 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#deebff;border:1px solid #b3d4ff;border-radius:12px;font-size:11px;color:#0052CC;font-family:'IBM Plex Mono',monospace;}
 .chip-x{cursor:pointer;opacity:.6;font-size:13px;line-height:1;}
 .chip-x:hover{opacity:1;}
-
-/* Table */
 .tbl-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
 table{width:100%;border-collapse:collapse;}
 thead tr{border-bottom:1px solid var(--bdr);}
@@ -91,9 +69,8 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
 .tbl-footer{padding:9px 14px;font-size:11px;color:var(--muted);border-top:1px solid var(--bdr);background:var(--surf2);font-family:'IBM Plex Mono',monospace;}
 .state-box{padding:56px 0;text-align:center;color:var(--muted);font-size:13px;}
 .spinner{width:24px;height:24px;border:2px solid var(--bdr);border-top-color:#0052CC;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px;}
+.err{color:#bf2600;}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.hidden{display:none!important;}
 </style>
 </head>
 <body>
@@ -104,30 +81,14 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
   <div class="tb-sep"></div>
   <span class="tb-sub">IFPG1-2 · Development Document</span>
   <span class="tb-ts" id="tb-ts"></span>
-  <button class="refresh-btn hidden" id="refreshBtn" onclick="fetchTickets()">
+  <button class="refresh-btn" id="refreshBtn" onclick="fetchTickets()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
     重新整理
   </button>
 </div>
 
-<!-- Auth -->
-<div id="authWrap">
-  <div class="auth-card">
-    <div class="auth-label">// 連線設定</div>
-    <div class="auth-title">Jira API 認證</div>
-    <div class="auth-desc">輸入你的 Atlassian 帳號與 API Token 以即時同步 Jira 資料。<br>Token 可在 <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">id.atlassian.com</a> 建立。</div>
-    <div class="field-group"><div class="field-label">EMAIL</div><input class="field-input" id="email" type="email" placeholder="your@email.com"></div>
-    <div class="field-group"><div class="field-label">API TOKEN</div><input class="field-input" id="token" type="password" placeholder="ATATT3x..."></div>
-    <div class="field-group"><div class="field-label">JIRA DOMAIN</div><input class="field-input" id="domain" value="viewsonic-vsi.atlassian.net"></div>
-    <div class="field-group"><div class="field-label">PROJECT KEY</div><input class="field-input" id="project" value="OK"></div>
-    <button class="load-btn" id="loadBtn" onclick="fetchTickets()">載入 Tickets</button>
-    <div class="err-box" id="errBox"></div>
-  </div>
-</div>
-
-<!-- Main -->
-<div class="wrap hidden" id="mainWrap">
-  <div class="stats" id="statsRow">
+<div class="wrap">
+  <div class="stats">
     <div class="stat"><div class="stat-n" id="s-tot">—</div><div class="stat-l">Total</div></div>
     <div class="stat"><div class="stat-n" id="s-todo" style="color:#42526e">—</div><div class="stat-l">To Do / 新建立</div></div>
     <div class="stat"><div class="stat-n" id="s-prog" style="color:#974f0c">—</div><div class="stat-l">In Progress</div></div>
@@ -185,14 +146,12 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
 </div>
 
 <script>
-const DOMAIN  = 'viewsonic-vsi.atlassian.net';
-const PROXY   = 'http://localhost:3000/api';
-const TYPE_ICON = {Story:'📋',Bug:'🐛',Task:'✅','Sub-task':'↳',Epic:'⚡'};
+// ── 設定：指向 Render server，不含任何 token ──
+const SERVER = 'https://jira-viewer-amap.onrender.com';
+const PROJECT = 'OK';
 
+const TYPE_ICON = {Story:'📋',Bug:'🐛',Task:'✅','Sub-task':'↳',Epic:'⚡'};
 let allIssues = [];
-let authToken = '';
-let jiraDomain = '';
-let jiraProject = '';
 
 function badgeCls(cat){
   if(cat==='indeterminate') return 'badge-progress';
@@ -202,76 +161,49 @@ function badgeCls(cat){
 function initials(n){ return n?n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase():'?'; }
 function fmtDate(s){ return s?s.slice(0,10):'—'; }
 
-async function jiraFetch(path){
-  const u = `${PROXY}?domain=${encodeURIComponent(jiraDomain)}&path=${encodeURIComponent(path)}`;
-  const res = await fetch(u, {headers:{'x-jira-auth': authToken}});
-  if(!res.ok){
-    const j = await res.json().catch(()=>({}));
-    throw new Error(`HTTP ${res.status} — ${j.errorMessages?.[0]||j.error||'Unknown error'}`);
-  }
-  return res.json();
-}
-
 async function fetchTickets(){
-  const email   = document.getElementById('email')?.value?.trim() || '';
-  const token   = document.getElementById('token')?.value?.trim() || '';
-  jiraDomain    = document.getElementById('domain')?.value?.trim() || DOMAIN;
-  jiraProject   = document.getElementById('project')?.value?.trim() || 'OK';
-
-  if(email && token) authToken = btoa(`${email}:${token}`);
-  if(!authToken){ showErr('請填寫 email 與 token'); return; }
-
   setLoading(true);
-
-  document.getElementById('authWrap').classList.add('hidden');
-  document.getElementById('mainWrap').classList.remove('hidden');
-  document.getElementById('refreshBtn').classList.remove('hidden');
-
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '<tr><td colspan="6"><div class="state-box"><div class="spinner"></div>從 Jira 載入最新資料...</div></td></tr>';
 
   try {
-    // Fetch all pages
-    let issues = [];
-    let pageToken = '';
+    let issues = [], pageToken = '';
     do {
-      const jql = encodeURIComponent(`project=${jiraProject} ORDER BY key ASC`);
-      const fields = 'summary,status,priority,assignee,issuetype,updated';
-      const path = `/rest/api/3/search/jql?jql=${jql}&fields=${fields}&maxResults=100${pageToken?'&nextPageToken='+encodeURIComponent(pageToken):''}`;
-      const data = await jiraFetch(path);
+      const u = `${SERVER}/tickets?project=${PROJECT}${pageToken?'&pageToken='+encodeURIComponent(pageToken):''}`;
+      const res = await fetch(u);
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if(data.errorMessages) throw new Error(data.errorMessages[0]);
       issues = issues.concat(data.issues || []);
       pageToken = data.isLast === false ? data.nextPageToken : '';
     } while(pageToken);
 
     allIssues = issues.map(i => ({
-      key:      i.key,
-      summary:  i.fields.summary || '',
-      status:   i.fields.status?.name || '',
-      statusCat:i.fields.status?.statusCategory?.key || 'new',
-      assignee: i.fields.assignee?.displayName || '',
-      avatar:   i.fields.assignee?.avatarUrls?.['24x24'] || '',
-      type:     i.fields.issuetype?.name || 'Story',
-      updated:  fmtDate(i.fields.updated),
-      url:      `https://${jiraDomain}/browse/${i.key}`
+      key:       i.key,
+      summary:   i.fields.summary || '',
+      status:    i.fields.status?.name || '',
+      statusCat: i.fields.status?.statusCategory?.key || 'new',
+      assignee:  i.fields.assignee?.displayName || '',
+      avatar:    i.fields.assignee?.avatarUrls?.['24x24'] || '',
+      type:      i.fields.issuetype?.name || 'Story',
+      updated:   fmtDate(i.fields.updated),
+      url:       `https://viewsonic-vsi.atlassian.net/browse/${i.key}`
     }));
 
-    document.getElementById('tb-ts').textContent = '最後同步：' + new Date().toLocaleTimeString('zh-TW');
+    document.getElementById('tb-ts').textContent = '　最後同步：' + new Date().toLocaleTimeString('zh-TW');
     buildDropdowns();
     updateStats();
     applyFilters();
 
   } catch(err){
-    tbody.innerHTML = `<tr><td colspan="6"><div class="state-box" style="color:#bf2600">❌ ${err.message}<br><small style="color:#6b778c;margin-top:6px;display:block">請確認 server 已啟動（node server.js）且帳號 token 正確</small></div></td></tr>`;
-    document.getElementById('authWrap').classList.remove('hidden');
+    tbody.innerHTML = `<tr><td colspan="6"><div class="state-box err">❌ 無法載入資料：${err.message}<br><small style="color:#6b778c;margin-top:6px;display:block">請確認 Render 服務正在運作</small></div></td></tr>`;
   }
-
   setLoading(false);
 }
 
 function buildDropdowns(){
   const statuses  = [...new Set(allIssues.map(i=>i.status))].sort();
   const assignees = [...new Set(allIssues.map(i=>i.assignee).filter(Boolean))].sort();
-
   const sS = document.getElementById('f-status');
   const sA = document.getElementById('f-assignee');
   sS.innerHTML = '<option value="">全部</option>';
@@ -281,12 +213,11 @@ function buildDropdowns(){
 }
 
 function updateStats(){
-  const t = allIssues.length;
-  const p = allIssues.filter(i=>i.statusCat==='indeterminate').length;
-  const d = allIssues.filter(i=>i.statusCat==='done').length;
-  const n = t - p - d;
+  const t=allIssues.length;
+  const p=allIssues.filter(i=>i.statusCat==='indeterminate').length;
+  const d=allIssues.filter(i=>i.statusCat==='done').length;
   document.getElementById('s-tot').textContent  = t;
-  document.getElementById('s-todo').textContent = n;
+  document.getElementById('s-todo').textContent = t-p-d;
   document.getElementById('s-prog').textContent = p;
   document.getElementById('s-done').textContent = d;
 }
@@ -298,7 +229,6 @@ function applyFilters(){
   const type = document.getElementById('f-type').value;
   const date = document.getElementById('f-date').value;
 
-  // Filter
   let filtered = allIssues.filter(i => {
     if(kw   && !i.key.toLowerCase().includes(kw) && !i.summary.toLowerCase().includes(kw)) return false;
     if(stat && i.status   !== stat) return false;
@@ -308,25 +238,24 @@ function applyFilters(){
     return true;
   });
 
-  // Sort by key number ascending
-  filtered.sort((a,b) => {
-    const na = parseInt(a.key.replace(/\D/g,'')) || 0;
-    const nb = parseInt(b.key.replace(/\D/g,'')) || 0;
-    return na - nb;
+  filtered.sort((a,b)=>{
+    const na=parseInt(a.key.replace(/\D/g,''))||0;
+    const nb=parseInt(b.key.replace(/\D/g,''))||0;
+    return na-nb;
   });
 
   renderTable(filtered);
-  renderChips(kw, stat, asgn, type, date);
-  document.getElementById('footer').textContent = filtered.length + ' / ' + allIssues.length + ' 筆 tickets';
+  renderChips(kw,stat,asgn,type,date);
+  document.getElementById('footer').textContent = filtered.length+' / '+allIssues.length+' 筆 tickets';
 }
 
 function renderTable(data){
   const tbody = document.getElementById('tbody');
   if(!data.length){
-    tbody.innerHTML = '<tr><td colspan="6"><div class="state-box">沒有符合條件的 ticket</div></td></tr>';
+    tbody.innerHTML='<tr><td colspan="6"><div class="state-box">沒有符合條件的 ticket</div></td></tr>';
     return;
   }
-  tbody.innerHTML = data.map(i => `
+  tbody.innerHTML = data.map(i=>`
     <tr>
       <td class="td-type" title="${i.type}">${TYPE_ICON[i.type]||'📄'}</td>
       <td class="td-key"><a href="${i.url}" target="_blank">${i.key}</a></td>
@@ -340,13 +269,13 @@ function renderTable(data){
     </tr>`).join('');
 }
 
-function renderChips(kw, stat, asgn, type, date){
-  const chips = document.getElementById('chips');
-  chips.innerHTML = '';
-  const add = (label, fn) => {
-    const c = document.createElement('span');
-    c.className = 'chip';
-    c.innerHTML = label + ` <span class="chip-x" onclick="${fn}">×</span>`;
+function renderChips(kw,stat,asgn,type,date){
+  const chips=document.getElementById('chips');
+  chips.innerHTML='';
+  const add=(label,fn)=>{
+    const c=document.createElement('span');
+    c.className='chip';
+    c.innerHTML=label+` <span class="chip-x" onclick="${fn}">×</span>`;
     chips.appendChild(c);
   };
   if(kw)   add('關鍵字：'+kw,   "document.getElementById('f-keyword').value='';applyFilters()");
@@ -357,24 +286,18 @@ function renderChips(kw, stat, asgn, type, date){
 }
 
 function resetFilters(){
-  ['f-keyword','f-status','f-assignee','f-type','f-date'].forEach(id => document.getElementById(id).value='');
+  ['f-keyword','f-status','f-assignee','f-type','f-date'].forEach(id=>document.getElementById(id).value='');
   applyFilters();
 }
 
 function setLoading(on){
-  const btn = document.getElementById('refreshBtn');
-  const lb  = document.getElementById('loadBtn');
-  btn.classList.toggle('loading', on);
-  btn.disabled = on;
-  if(lb){ lb.disabled = on; lb.textContent = on ? '連線中...' : '載入 Tickets'; }
+  const btn=document.getElementById('refreshBtn');
+  btn.disabled=on;
+  btn.classList.toggle('loading',on);
 }
 
-function showErr(msg){
-  const el = document.getElementById('errBox');
-  if(!el) return;
-  el.style.display = 'block';
-  el.textContent = msg;
-}
+// 自動載入
+fetchTickets();
 </script>
 </body>
 </html>
