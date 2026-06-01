@@ -52,7 +52,7 @@ const server = http.createServer((req, res) => {
     const project   = parsed.query.project || 'OK';
     const pageToken = parsed.query.pageToken || '';
     const jql       = encodeURIComponent(`project=${project} ORDER BY key ASC`);
-    const fields    = 'summary,status,priority,assignee,issuetype,updated';
+    const fields    = 'summary,status,priority,assignee,issuetype,updated,duedate';
     let apiPath     = `/rest/api/3/search/jql?jql=${jql}&fields=${fields}&maxResults=100`;
     if (pageToken) apiPath += `&nextPageToken=${encodeURIComponent(pageToken)}`;
     jiraRequest(apiPath, res);
