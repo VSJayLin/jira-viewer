@@ -46,7 +46,11 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .tbl-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
 table{width:100%;border-collapse:collapse;}
 thead tr{border-bottom:1px solid var(--bdr);}
-th{text-align:left;padding:10px 14px;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;background:var(--surf2);white-space:nowrap;}
+th{text-align:left;padding:10px 14px;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;background:var(--surf2);white-space:nowrap;cursor:pointer;user-select:none;}
+th:hover{color:var(--dim);}
+th.sorted{color:#0052CC;}
+th .sort-arrow{margin-left:4px;opacity:.4;font-style:normal;}
+th.sorted .sort-arrow{opacity:1;}
 tbody tr{border-bottom:1px solid var(--bdr);transition:background .1s;}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:#f0f4ff;}
@@ -125,6 +129,14 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
         <div class="fg-label">更新時間</div>
         <input class="fg-input" id="f-date" type="date" oninput="applyFilters()">
       </div>
+      <div class="filter-group">
+        <div class="fg-label">截止日期（起）</div>
+        <input class="fg-input" id="f-due-from" type="date" oninput="applyFilters()">
+      </div>
+      <div class="filter-group">
+        <div class="fg-label">截止日期（迄）</div>
+        <input class="fg-input" id="f-due-to" type="date" oninput="applyFilters()">
+      </div>
       <div class="filter-actions">
         <button class="btn-reset" onclick="resetFilters()">✕ 清除篩選</button>
       </div>
@@ -135,7 +147,13 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
   <div class="tbl-wrap">
     <table>
       <thead><tr>
-        <th></th><th>Key</th><th>Summary</th><th>Status</th><th>Assignee</th><th>目標完成時間</th><th>Updated</th>
+        <th></th>
+        <th id="th-key" onclick="setSort('key')">Key <i class="sort-arrow">↕</i></th>
+        <th>Summary</th>
+        <th id="th-status" onclick="setSort('status')">Status <i class="sort-arrow">↕</i></th>
+        <th id="th-assignee" onclick="setSort('assignee')">Assignee <i class="sort-arrow">↕</i></th>
+        <th id="th-duedate" onclick="setSort('duedate')">目標完成時間 <i class="sort-arrow">↕</i></th>
+        <th id="th-updated" onclick="setSort('updated')">Updated <i class="sort-arrow">↕</i></th>
       </tr></thead>
       <tbody id="tbody">
         <tr><td colspan="6"><div class="state-box"><div class="spinner"></div>載入中...</div></td></tr>
@@ -152,6 +170,23 @@ const PROJECT = 'OK';
 
 const TYPE_ICON = {Story:'📋',Bug:'🐛',Task:'✅','Sub-task':'↳',Epic:'⚡'};
 let allIssues = [];
+let sortKey = 'key';
+let sortAsc = true;
+
+function setSort(key){
+  if(sortKey === key){ sortAsc = !sortAsc; }
+  else { sortKey = key; sortAsc = true; }
+
+  // Update header arrows
+  ['key','status','assignee','duedate','updated'].forEach(k => {
+    const th = document.getElementById('th-'+k);
+    if(!th) return;
+    th.classList.toggle('sorted', k === sortKey);
+    th.querySelector('.sort-arrow').textContent = k === sortKey ? (sortAsc ? '↑' : '↓') : '↕';
+  });
+
+  applyFilters();
+}
 
 function badgeCls(cat){
   if(cat==='indeterminate') return 'badge-progress';
@@ -224,29 +259,45 @@ function updateStats(){
 }
 
 function applyFilters(){
-  const kw   = document.getElementById('f-keyword').value.trim().toLowerCase();
-  const stat = document.getElementById('f-status').value;
-  const asgn = document.getElementById('f-assignee').value;
-  const type = document.getElementById('f-type').value;
-  const date = document.getElementById('f-date').value;
+  const kw      = document.getElementById('f-keyword').value.trim().toLowerCase();
+  const stat    = document.getElementById('f-status').value;
+  const asgn    = document.getElementById('f-assignee').value;
+  const type    = document.getElementById('f-type').value;
+  const date    = document.getElementById('f-date').value;
+  const dueFrom = document.getElementById('f-due-from').value;
+  const dueTo   = document.getElementById('f-due-to').value;
 
   let filtered = allIssues.filter(i => {
-    if(kw   && !i.key.toLowerCase().includes(kw) && !i.summary.toLowerCase().includes(kw)) return false;
-    if(stat && i.status   !== stat) return false;
-    if(asgn && i.assignee !== asgn) return false;
-    if(type && i.type     !== type) return false;
-    if(date && i.updated  <  date)  return false;
+    if(kw      && !i.key.toLowerCase().includes(kw) && !i.summary.toLowerCase().includes(kw)) return false;
+    if(stat    && i.status   !== stat)  return false;
+    if(asgn    && i.assignee !== asgn)  return false;
+    if(type    && i.type     !== type)  return false;
+    if(date    && i.updated  <  date)   return false;
+    if(dueFrom && (i.duedate === '—' || i.duedate < dueFrom)) return false;
+    if(dueTo   && (i.duedate === '—' || i.duedate > dueTo))   return false;
     return true;
   });
 
-  filtered.sort((a,b)=>{
-    const na=parseInt(a.key.replace(/\D/g,''))||0;
-    const nb=parseInt(b.key.replace(/\D/g,''))||0;
-    return na-nb;
+  // Sort
+  filtered.sort((a,b) => {
+    let va = a[sortKey] || '';
+    let vb = b[sortKey] || '';
+    // Numeric sort for key (OK-13 < OK-99)
+    if(sortKey === 'key'){
+      va = parseInt(a.key.replace(/\D/g,'')) || 0;
+      vb = parseInt(b.key.replace(/\D/g,'')) || 0;
+      return sortAsc ? va - vb : vb - va;
+    }
+    // Push empty values to bottom always
+    if(va === '—' || va === '') return 1;
+    if(vb === '—' || vb === '') return -1;
+    if(va < vb) return sortAsc ? -1 : 1;
+    if(va > vb) return sortAsc ? 1 : -1;
+    return 0;
   });
 
   renderTable(filtered);
-  renderChips(kw,stat,asgn,type,date);
+  renderChips(kw,stat,asgn,type,date,dueFrom,dueTo);
   document.getElementById('footer').textContent = filtered.length+' / '+allIssues.length+' 筆 tickets';
 }
 
@@ -271,7 +322,7 @@ function renderTable(data){
     </tr>`).join('');
 }
 
-function renderChips(kw,stat,asgn,type,date){
+function renderChips(kw,stat,asgn,type,date,dueFrom,dueTo){
   const chips=document.getElementById('chips');
   chips.innerHTML='';
   const add=(label,fn)=>{
@@ -280,15 +331,17 @@ function renderChips(kw,stat,asgn,type,date){
     c.innerHTML=label+` <span class="chip-x" onclick="${fn}">×</span>`;
     chips.appendChild(c);
   };
-  if(kw)   add('關鍵字：'+kw,   "document.getElementById('f-keyword').value='';applyFilters()");
-  if(stat) add('狀態：'+stat,   "document.getElementById('f-status').value='';applyFilters()");
-  if(asgn) add('負責人：'+asgn, "document.getElementById('f-assignee').value='';applyFilters()");
-  if(type) add('類型：'+type,   "document.getElementById('f-type').value='';applyFilters()");
-  if(date) add('更新時間≥'+date,"document.getElementById('f-date').value='';applyFilters()");
+  if(kw)      add('關鍵字：'+kw,       "document.getElementById('f-keyword').value='';applyFilters()");
+  if(stat)    add('狀態：'+stat,        "document.getElementById('f-status').value='';applyFilters()");
+  if(asgn)    add('負責人：'+asgn,      "document.getElementById('f-assignee').value='';applyFilters()");
+  if(type)    add('類型：'+type,        "document.getElementById('f-type').value='';applyFilters()");
+  if(date)    add('更新時間≥'+date,     "document.getElementById('f-date').value='';applyFilters()");
+  if(dueFrom) add('截止日期≥'+dueFrom, "document.getElementById('f-due-from').value='';applyFilters()");
+  if(dueTo)   add('截止日期≤'+dueTo,   "document.getElementById('f-due-to').value='';applyFilters()");
 }
 
 function resetFilters(){
-  ['f-keyword','f-status','f-assignee','f-type','f-date'].forEach(id=>document.getElementById(id).value='');
+  ['f-keyword','f-status','f-assignee','f-type','f-date','f-due-from','f-due-to'].forEach(id=>document.getElementById(id).value='');
   applyFilters();
 }
 
