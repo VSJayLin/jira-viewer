@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ODM KTC · IFPG1-2 Development Document</title>
+<title>ODM KTC · 批次建立 Tickets</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f4f5f7;--surf:#fff;--surf2:#f8f9fa;--bdr:#dfe1e6;--text:#172b4d;--muted:#6b778c;--dim:#42526e;--acc:#0052CC;--acc2:#0065ff;}
+:root{--bg:#f4f5f7;--surf:#fff;--surf2:#f8f9fa;--bdr:#dfe1e6;--text:#172b4d;--muted:#6b778c;--dim:#42526e;--acc:#0052CC;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-weight:300;min-height:100vh;}
 .topbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:13px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.06);}
@@ -15,358 +15,464 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .tb-title{font-size:13px;font-weight:500;}
 .tb-sep{width:1px;height:18px;background:var(--bdr);}
 .tb-sub{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
-.tb-ts{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
-.refresh-btn{margin-left:auto;display:flex;align-items:center;gap:6px;padding:6px 14px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--dim);font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;}
-.refresh-btn:hover{border-color:#0052CC;color:#0052CC;}
-.refresh-btn:disabled{opacity:.5;cursor:not-allowed;}
-.refresh-btn svg{width:13px;height:13px;}
-.refresh-btn.loading svg{animation:spin .7s linear infinite;}
-.wrap{max-width:1140px;margin:0 auto;padding:24px 28px 60px;}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
-.stat{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
-.stat-n{font-size:26px;font-weight:500;font-family:'IBM Plex Mono',monospace;}
-.stat-l{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.06em;}
-.filter-bar{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
-.filter-bar-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
-.filter-bar-title::after{content:'';flex:1;height:1px;background:var(--bdr);}
-.filter-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
-.filter-group{display:flex;flex-direction:column;gap:5px;min-width:140px;}
-.filter-group.wide{min-width:200px;flex:1;}
-.fg-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;}
-.fg-select,.fg-input{background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'IBM Plex Mono',monospace;outline:none;transition:border-color .15s;width:100%;}
-.fg-select:focus,.fg-input:focus{border-color:#0052CC;}
-.fg-input::placeholder{color:var(--muted);}
-.filter-actions{display:flex;gap:8px;align-items:flex-end;margin-left:auto;}
-.btn-reset{padding:7px 14px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--muted);font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;white-space:nowrap;}
-.btn-reset:hover{border-color:var(--dim);color:var(--text);}
-.filter-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
-.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#deebff;border:1px solid #b3d4ff;border-radius:12px;font-size:11px;color:#0052CC;font-family:'IBM Plex Mono',monospace;}
-.chip-x{cursor:pointer;opacity:.6;font-size:13px;line-height:1;}
-.chip-x:hover{opacity:1;}
-.tbl-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
-table{width:100%;border-collapse:collapse;}
-thead tr{border-bottom:1px solid var(--bdr);}
-th{text-align:left;padding:10px 14px;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;background:var(--surf2);white-space:nowrap;cursor:pointer;user-select:none;}
-th:hover{color:var(--dim);}
-th.sorted{color:#0052CC;}
-th .sort-arrow{margin-left:4px;opacity:.4;font-style:normal;}
-th.sorted .sort-arrow{opacity:1;}
+.wrap{max-width:1200px;margin:28px auto;padding:0 28px 60px;}
+.steps{display:flex;margin-bottom:24px;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;}
+.step{flex:1;padding:14px 18px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);border-right:1px solid var(--bdr);}
+.step:last-child{border-right:none;}
+.step.active{background:#deebff;color:#0052CC;}
+.step.done{background:#e3fcef;color:#006644;}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--bdr);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;}
+.step.active .step-num{background:#0052CC;color:white;}
+.step.done .step-num{background:#006644;color:white;}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.card-title{font-size:15px;font-weight:500;margin-bottom:6px;}
+.card-desc{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.sel-row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;}
+.sel-group{display:flex;flex-direction:column;gap:5px;}
+.fg-label{font-size:11px;color:var(--dim);font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;}
+.field-select{background:var(--surf2);border:1px solid var(--bdr);border-radius:7px;padding:9px 13px;color:var(--text);font-size:13px;outline:none;transition:border-color .15s;min-width:220px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b778c' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+.field-select:focus{border-color:#0052CC;}
+.field-select:disabled{opacity:.5;cursor:not-allowed;}
+.confirm-btn{padding:9px 20px;background:#0052CC;border:none;border-radius:7px;color:white;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:background .15s;white-space:nowrap;align-self:flex-end;}
+.confirm-btn:hover{background:#0065ff;}
+.confirm-btn:disabled{opacity:.5;cursor:not-allowed;}
+.sel-note{font-size:12px;color:var(--muted);margin-top:12px;padding:10px 14px;background:var(--surf2);border-radius:6px;border:1px solid var(--bdr);}
+.tbl-wrap{overflow-x:auto;margin-bottom:16px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:var(--surf2);border-bottom:2px solid var(--bdr);}
+th{padding:10px 10px;text-align:left;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+th .req{color:#de350b;}
 tbody tr{border-bottom:1px solid var(--bdr);transition:background .1s;}
 tbody tr:last-child{border-bottom:none;}
-tbody tr:hover{background:#f0f4ff;}
-td{padding:10px 14px;font-size:13px;vertical-align:middle;}
-.td-type{font-size:15px;width:36px;}
-.td-key a{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0052CC;text-decoration:none;white-space:nowrap;}
-.td-key a:hover{text-decoration:underline;}
-.td-summary{max-width:380px;}
-.td-summary a{color:var(--text);text-decoration:none;}
-.td-summary a:hover{color:#0052CC;}
-.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap;font-family:'IBM Plex Mono',monospace;}
-.badge-todo{background:#f4f5f7;color:#42526e;border:1px solid #dfe1e6;}
-.badge-progress{background:#fffae6;color:#974f0c;border:1px solid #ffe380;}
-.badge-done{background:#e3fcef;color:#006644;border:1px solid #abf5d1;}
-.td-assignee{display:flex;align-items:center;gap:7px;}
-.td-reporter{display:flex;align-items:center;gap:7px;}
-.av{width:22px;height:22px;border-radius:50%;background:#deebff;border:1px solid #b3d4ff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:#0052CC;flex-shrink:0;overflow:hidden;}
-.av img{width:100%;height:100%;object-fit:cover;}
-.av-name{font-size:12px;color:var(--dim);white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;}
-.td-date{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
-.tbl-footer{padding:9px 14px;font-size:11px;color:var(--muted);border-top:1px solid var(--bdr);background:var(--surf2);font-family:'IBM Plex Mono',monospace;}
-.state-box{padding:56px 0;text-align:center;color:var(--muted);font-size:13px;}
-.spinner{width:24px;height:24px;border:2px solid var(--bdr);border-top-color:#0052CC;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px;}
-.err{color:#bf2600;}
+tbody tr:hover{background:#f8f9ff;}
+td{padding:7px 8px;vertical-align:middle;}
+.row-num{color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;width:32px;text-align:center;}
+.cell-input{width:100%;background:transparent;border:1px solid transparent;border-radius:5px;padding:6px 8px;font-size:12px;color:var(--text);outline:none;transition:all .15s;}
+.cell-input:focus,.cell-input:hover{background:#fff;border-color:#dfe1e6;}
+.cell-input:focus{border-color:#0052CC;}
+.cell-input::placeholder{color:#c1c7d0;}
+.cell-select{width:100%;background:transparent;border:1px solid transparent;border-radius:5px;padding:6px 8px;font-size:12px;color:var(--text);outline:none;transition:all .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236b778c' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:22px;cursor:pointer;}
+.cell-select:focus,.cell-select:hover{background:#fff;border-color:#dfe1e6;}
+.cell-select:focus{border-color:#0052CC;}
+.cell-err{border-color:#ff8f73!important;background:#fff8f6!important;}
+.remove-btn{padding:4px 8px;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--muted);font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.remove-btn:hover{border-color:#de350b;color:#de350b;}
+.bottom-bar{display:flex;align-items:center;gap:12px;padding:14px 0;}
+.add-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--dim);font-size:13px;cursor:pointer;transition:all .15s;}
+.add-btn:hover{border-color:#0052CC;color:#0052CC;}
+.add-multi{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+.add-multi input{width:52px;padding:5px 8px;border:1px solid var(--bdr);border-radius:5px;font-size:12px;text-align:center;outline:none;}
+.add-multi input:focus{border-color:#0052CC;}
+.row-count{margin-left:auto;font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.summary-bar{display:flex;align-items:center;gap:16px;padding:11px 16px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;margin-bottom:16px;font-size:13px;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+.dot-ok{background:#36b37e;}.dot-err{background:#de350b;}.dot-empty{background:#dfe1e6;}
+.submit-btn{padding:10px 28px;background:#0052CC;border:none;border-radius:8px;color:white;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:8px;}
+.submit-btn:hover{background:#0065ff;}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+.submit-btn.loading .spinner{display:block;}
+.clear-btn{padding:10px 16px;background:transparent;border:1px solid var(--bdr);border-radius:8px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .15s;}
+.clear-btn:hover{border-color:#de350b;color:#de350b;}
+.result-card{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.result-title{font-size:15px;font-weight:500;margin-bottom:16px;}
+.result-stats{display:flex;gap:20px;margin-bottom:16px;font-size:14px;}
+.stat-ok{color:#006644;font-weight:500;}.stat-fail{color:#bf2600;font-weight:500;}
+.result-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--bdr);font-size:13px;}
+.result-row:last-child{border-bottom:none;}
+.rkey a{color:#0052CC;text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;}
+.rkey a:hover{text-decoration:underline;}
+.action-row{display:flex;gap:10px;margin-top:20px;}
+.sec-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--dim);font-size:12px;cursor:pointer;text-decoration:none;transition:all .15s;}
+.sec-btn:hover{border-color:#0052CC;color:#0052CC;}
+.loading-msg{padding:12px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;}
+.mini-spin{width:16px;height:16px;border:2px solid var(--bdr);border-top-color:#0052CC;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+.badge-board{display:inline-block;padding:1px 6px;background:#e6f0ff;border:1px solid #b3d4ff;border-radius:3px;font-size:10px;color:#0052CC;font-family:'IBM Plex Mono',monospace;margin-left:4px;}
+.hidden{display:none!important;}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-
 <div class="topbar">
   <div class="logo"><svg viewBox="0 0 24 24"><path d="M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.056A5.215 5.215 0 0012.575 24V12.518a1.005 1.005 0 00-1.004-1.005zm5.723-5.756H5.757a5.215 5.215 0 005.214 5.214h2.13v2.057a5.215 5.215 0 005.215 5.214V6.762a1.005 1.005 0 00-1.022-1.005zM23.013 0H11.455a5.215 5.215 0 005.215 5.215h2.129v2.057A5.215 5.215 0 0024 12.486V1.005A1.005 1.005 0 0023.013 0z"/></svg></div>
   <span class="tb-title">ODM KTC</span>
   <div class="tb-sep"></div>
-  <span class="tb-sub">IFPG1-2 · Development Document</span>
-  <span class="tb-ts" id="tb-ts"></span>
-  <button class="refresh-btn" id="refreshBtn" onclick="fetchTickets()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
-    重新整理
-  </button>
-  <a href="create.html" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:#0052CC;border:1px solid #0052CC;border-radius:6px;color:white;font-size:12px;text-decoration:none;font-family:'IBM Plex Sans',sans-serif;transition:background .15s;" onmouseover="this.style.background='#0065ff'" onmouseout="this.style.background='#0052CC'">
-    ✚ 建立 Ticket
-  </a>
-  <a href="batch.html" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:transparent;border:1px solid #0052CC;border-radius:6px;color:#0052CC;font-size:12px;text-decoration:none;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;" onmouseover="this.style.background='#deebff'" onmouseout="this.style.background='transparent'">
-    ⊞ 批次建立
-  </a>
+  <span class="tb-sub">批次建立 Tickets</span>
 </div>
 
 <div class="wrap">
-  <div class="stats">
-    <div class="stat"><div class="stat-n" id="s-tot">—</div><div class="stat-l">Total</div></div>
-    <div class="stat"><div class="stat-n" id="s-todo" style="color:#42526e">—</div><div class="stat-l">To Do / 新建立</div></div>
-    <div class="stat"><div class="stat-n" id="s-prog" style="color:#974f0c">—</div><div class="stat-l">In Progress</div></div>
-    <div class="stat"><div class="stat-n" id="s-done" style="color:#006644">—</div><div class="stat-l">Done / 完成</div></div>
+  <div class="steps">
+    <div class="step active" id="step1"><div class="step-num">1</div>選擇空間 / 看板 / Epic</div>
+    <div class="step" id="step2"><div class="step-num">2</div>填寫 Tickets</div>
+    <div class="step" id="step3"><div class="step-num">3</div>建立完成</div>
   </div>
 
-  <div class="filter-bar">
-    <div class="filter-bar-title">進階篩選</div>
-    <div class="filter-row">
-      <div class="filter-group wide">
-        <div class="fg-label">關鍵字搜尋</div>
-        <input class="fg-input" id="f-keyword" placeholder="搜尋 key、標題..." oninput="applyFilters()">
+  <!-- Step 1 -->
+  <div class="card" id="card1">
+    <div class="card-title">Step 1 — 選擇空間、看板與 Epic</div>
+    <div class="card-desc">先選擇 Jira 空間，系統會自動載入該空間下的看板與 Epic。看板和 Epic 為選填。</div>
+
+    <div id="projectLoading" class="loading-msg"><div class="mini-spin"></div>載入專案列表中...</div>
+
+    <div id="selectorWrap" class="hidden">
+      <div class="sel-row">
+        <!-- Project -->
+        <div class="sel-group">
+          <div class="fg-label">空間 Project <span style="color:#de350b">*</span></div>
+          <select class="field-select" id="projectSelect" onchange="onProjectChange()">
+            <option value="">請選擇空間...</option>
+          </select>
+        </div>
+        <!-- Board -->
+        <div class="sel-group">
+          <div class="fg-label">看板 Board <span style="color:var(--muted);font-weight:300">選填</span></div>
+          <select class="field-select" id="boardSelect" disabled>
+            <option value="">請先選擇空間</option>
+          </select>
+        </div>
+        <!-- Epic -->
+        <div class="sel-group">
+          <div class="fg-label">Epic <span style="color:var(--muted);font-weight:300">選填</span></div>
+          <select class="field-select" id="epicSelect" disabled>
+            <option value="">請先選擇空間</option>
+          </select>
+        </div>
+        <button class="confirm-btn" id="confirmBtn" onclick="confirmSelection()" disabled>確認 →</button>
       </div>
-      <div class="filter-group">
-        <div class="fg-label">狀態 Status</div>
-        <select class="fg-select" id="f-status" onchange="applyFilters()"><option value="">全部</option></select>
-      </div>
-      <div class="filter-group">
-        <div class="fg-label">負責人 Assignee</div>
-        <select class="fg-select" id="f-assignee" onchange="applyFilters()"><option value="">全部</option></select>
-      </div>
-      <div class="filter-group">
-        <div class="fg-label">類型 Type</div>
-        <select class="fg-select" id="f-type" onchange="applyFilters()">
-          <option value="">全部</option>
-          <option value="Story">📋 Story</option>
-          <option value="Sub-task">↳ Sub-task</option>
-          <option value="Bug">🐛 Bug</option>
-          <option value="Task">✅ Task</option>
-          <option value="Epic">⚡ Epic</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <div class="fg-label">更新時間</div>
-        <input class="fg-input" id="f-date" type="date" oninput="applyFilters()">
-      </div>
-      <div class="filter-group">
-        <div class="fg-label">截止日期（起）</div>
-        <input class="fg-input" id="f-due-from" type="date" oninput="applyFilters()">
-      </div>
-      <div class="filter-group">
-        <div class="fg-label">截止日期（迄）</div>
-        <input class="fg-input" id="f-due-to" type="date" oninput="applyFilters()">
-      </div>
-      <div class="filter-actions">
-        <button class="btn-reset" onclick="resetFilters()">✕ 清除篩選</button>
-      </div>
+      <div class="sel-note" id="selNote" style="display:none"></div>
     </div>
-    <div class="filter-chips" id="chips"></div>
   </div>
 
-  <div class="tbl-wrap">
-    <table>
-      <thead><tr>
-        <th></th>
-        <th id="th-key" onclick="setSort('key')">Key <i class="sort-arrow">↕</i></th>
-        <th>Summary</th>
-        <th id="th-status" onclick="setSort('status')">Status <i class="sort-arrow">↕</i></th>
-        <th id="th-assignee" onclick="setSort('assignee')">Assignee <i class="sort-arrow">↕</i></th>
-        <th id="th-reporter" onclick="setSort('reporter')">Reporter <i class="sort-arrow">↕</i></th>
-        <th id="th-duedate" onclick="setSort('duedate')">目標完成時間 <i class="sort-arrow">↕</i></th>
-        <th id="th-updated" onclick="setSort('updated')">Updated <i class="sort-arrow">↕</i></th>
-      </tr></thead>
-      <tbody id="tbody">
-        <tr><td colspan="6"><div class="state-box"><div class="spinner"></div>載入中...</div></td></tr>
-      </tbody>
-    </table>
-    <div class="tbl-footer" id="footer"></div>
+  <!-- Step 2 -->
+  <div class="card hidden" id="card2">
+    <div class="card-title">Step 2 — 填寫 Ticket 資料</div>
+    <div class="card-desc" id="card2Desc">每一列代表一張 ticket，<span style="color:#de350b">*</span> 為必填。</div>
+
+    <div class="tbl-wrap">
+      <table id="inputTable">
+        <thead>
+          <tr>
+            <th style="width:36px">#</th>
+            <th style="min-width:220px">Summary <span class="req">*</span></th>
+            <th style="min-width:160px">Description</th>
+            <th style="min-width:130px">Issue Type <span class="req">*</span></th>
+            <th style="min-width:110px">Priority</th>
+            <th style="min-width:130px">Assignee</th>
+            <th style="min-width:120px">Due Date</th>
+            <th style="width:52px"></th>
+          </tr>
+        </thead>
+        <tbody id="inputBody"></tbody>
+      </table>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="add-btn" onclick="addRow()">＋ 新增一列</button>
+      <div class="add-multi">
+        <span>批次新增</span>
+        <input type="number" id="multiCount" value="5" min="1" max="50">
+        <span>列</span>
+        <button class="add-btn" style="padding:6px 12px" onclick="addMultiRows()">新增</button>
+      </div>
+      <span class="row-count" id="rowCount">0 列</span>
+    </div>
+
+    <div class="summary-bar" id="summaryBar">
+      <span><span class="dot dot-empty"></span>請先填寫資料</span>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button class="submit-btn" id="submitBtn" onclick="submitBatch()">
+        <div class="spinner"></div>
+        <span class="btn-label">✚ 建立所有 Tickets</span>
+      </button>
+      <button class="clear-btn" onclick="clearAll()">清除所有列</button>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="result-card hidden" id="card3">
+    <div class="result-title">建立結果</div>
+    <div class="result-stats" id="resultStats"></div>
+    <div id="resultList"></div>
+    <div class="action-row">
+      <button class="sec-btn" onclick="resetAll()">↩ 再次批次建立</button>
+    </div>
   </div>
 </div>
 
 <script>
-// ── 設定：指向 Render server，不含任何 token ──
-const SERVER = 'https://jira-viewer-amap.onrender.com';
-const PROJECT = 'OK';
+const SERVER = 'https://jira-batch.onrender.com';
+let meta = { issueTypes:[], priorities:[], assignees:[] };
+let selectedProject = '', selectedBoard = '', selectedEpic = '';
+let rowId = 0;
 
-const TYPE_ICON = {Story:'📋',Bug:'🐛',Task:'✅','Sub-task':'↳',Epic:'⚡'};
-let allIssues = [];
-let sortKey = 'key';
-let sortAsc = true;
-
-function setSort(key){
-  if(sortKey === key){ sortAsc = !sortAsc; }
-  else { sortKey = key; sortAsc = true; }
-
-  // Update header arrows
-  ['key','status','assignee','reporter','duedate','updated'].forEach(k => {
-    const th = document.getElementById('th-'+k);
-    if(!th) return;
-    th.classList.toggle('sorted', k === sortKey);
-    th.querySelector('.sort-arrow').textContent = k === sortKey ? (sortAsc ? '↑' : '↓') : '↕';
-  });
-
-  applyFilters();
-}
-
-function badgeCls(cat){
-  if(cat==='indeterminate') return 'badge-progress';
-  if(cat==='done') return 'badge-done';
-  return 'badge-todo';
-}
-function initials(n){ return n?n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase():'?'; }
-function fmtDate(s){ return s?s.slice(0,10):'—'; }
-
-async function fetchTickets(){
-  setLoading(true);
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = '<tr><td colspan="8"><div class="state-box"><div class="spinner"></div>從 Jira 載入最新資料...</div></td></tr>';
-
+// ── Load projects ──
+async function loadProjects() {
   try {
-    let issues = [], pageToken = '';
-    do {
-      const u = `${SERVER}/tickets?project=${PROJECT}${pageToken?'&pageToken='+encodeURIComponent(pageToken):''}`;
-      const res = await fetch(u);
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if(data.errorMessages) throw new Error(data.errorMessages[0]);
-      issues = issues.concat(data.issues || []);
-      pageToken = data.isLast === false ? data.nextPageToken : '';
-    } while(pageToken);
-
-    allIssues = issues.map(i => ({
-      key:       i.key,
-      summary:   i.fields.summary || '',
-      status:    i.fields.status?.name || '',
-      statusCat: i.fields.status?.statusCategory?.key || 'new',
-      assignee:  i.fields.assignee?.displayName || '',
-      avatar:    i.fields.assignee?.avatarUrls?.['24x24'] || '',
-      reporter:  i.fields.reporter?.displayName || '',
-      reporterAvatar: i.fields.reporter?.avatarUrls?.['24x24'] || '',
-      type:      i.fields.issuetype?.name || 'Story',
-      updated:   fmtDate(i.fields.updated),
-      duedate:   fmtDate(i.fields.duedate),
-      url:       `https://viewsonic-vsi.atlassian.net/browse/${i.key}`
-    }));
-
-    document.getElementById('tb-ts').textContent = '　最後同步：' + new Date().toLocaleTimeString('zh-TW');
-    buildDropdowns();
-    updateStats();
-    applyFilters();
-
-  } catch(err){
-    tbody.innerHTML = `<tr><td colspan="8"><div class="state-box err">❌ 無法載入資料：${err.message}<br><small style="color:#6b778c;margin-top:6px;display:block">請確認 Render 服務正在運作</small></div></td></tr>`;
+    const res = await fetch(`${SERVER}/projects`);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const projects = await res.json();
+    const sel = document.getElementById('projectSelect');
+    sel.innerHTML = '<option value="">請選擇空間...</option>';
+    [...projects].sort((a,b)=>a.name.localeCompare(b.name)).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.key; o.textContent = `${p.name} (${p.key})`;
+      sel.appendChild(o);
+    });
+    document.getElementById('projectLoading').classList.add('hidden');
+    document.getElementById('selectorWrap').classList.remove('hidden');
+  } catch(e) {
+    document.getElementById('projectLoading').innerHTML = `<span style="color:#bf2600">❌ 載入失敗：${e.message}</span>`;
   }
-  setLoading(false);
 }
 
-function buildDropdowns(){
-  const statuses  = [...new Set(allIssues.map(i=>i.status))].sort();
-  const assignees = [...new Set(allIssues.map(i=>i.assignee).filter(Boolean))].sort();
-  const sS = document.getElementById('f-status');
-  const sA = document.getElementById('f-assignee');
-  sS.innerHTML = '<option value="">全部</option>';
-  sA.innerHTML = '<option value="">全部</option>';
-  statuses.forEach(s  => { const o=document.createElement('option');o.value=s;o.textContent=s;sS.appendChild(o); });
-  assignees.forEach(a => { const o=document.createElement('option');o.value=a;o.textContent=a;sA.appendChild(o); });
-}
+async function onProjectChange() {
+  const project = document.getElementById('projectSelect').value;
+  document.getElementById('confirmBtn').disabled = !project;
 
-function updateStats(){
-  const t=allIssues.length;
-  const p=allIssues.filter(i=>i.statusCat==='indeterminate').length;
-  const d=allIssues.filter(i=>i.statusCat==='done').length;
-  document.getElementById('s-tot').textContent  = t;
-  document.getElementById('s-todo').textContent = t-p-d;
-  document.getElementById('s-prog').textContent = p;
-  document.getElementById('s-done').textContent = d;
-}
-
-function applyFilters(){
-  const kw      = document.getElementById('f-keyword').value.trim().toLowerCase();
-  const stat    = document.getElementById('f-status').value;
-  const asgn    = document.getElementById('f-assignee').value;
-  const type    = document.getElementById('f-type').value;
-  const date    = document.getElementById('f-date').value;
-  const dueFrom = document.getElementById('f-due-from').value;
-  const dueTo   = document.getElementById('f-due-to').value;
-
-  let filtered = allIssues.filter(i => {
-    if(kw      && !i.key.toLowerCase().includes(kw) && !i.summary.toLowerCase().includes(kw)) return false;
-    if(stat    && i.status   !== stat)  return false;
-    if(asgn    && i.assignee !== asgn)  return false;
-    if(type    && i.type     !== type)  return false;
-    if(date    && i.updated  <  date)   return false;
-    if(dueFrom && (i.duedate === '—' || i.duedate < dueFrom)) return false;
-    if(dueTo   && (i.duedate === '—' || i.duedate > dueTo))   return false;
-    return true;
-  });
-
-  // Sort
-  filtered.sort((a,b) => {
-    let va = a[sortKey] || '';
-    let vb = b[sortKey] || '';
-    // Numeric sort for key (OK-13 < OK-99)
-    if(sortKey === 'key'){
-      va = parseInt(a.key.replace(/\D/g,'')) || 0;
-      vb = parseInt(b.key.replace(/\D/g,'')) || 0;
-      return sortAsc ? va - vb : vb - va;
-    }
-    // Push empty values to bottom always
-    if(va === '—' || va === '') return 1;
-    if(vb === '—' || vb === '') return -1;
-    if(va < vb) return sortAsc ? -1 : 1;
-    if(va > vb) return sortAsc ? 1 : -1;
-    return 0;
-  });
-
-  renderTable(filtered);
-  renderChips(kw,stat,asgn,type,date,dueFrom,dueTo);
-  document.getElementById('footer').textContent = filtered.length+' / '+allIssues.length+' 筆 tickets';
-}
-
-function renderTable(data){
-  const tbody = document.getElementById('tbody');
-  if(!data.length){
-    tbody.innerHTML='<tr><td colspan="8"><div class="state-box">沒有符合條件的 ticket</div></td></tr>';
+  if (!project) {
+    resetDropdown('boardSelect', '請先選擇空間');
+    resetDropdown('epicSelect', '請先選擇空間');
     return;
   }
-  tbody.innerHTML = data.map(i=>`
-    <tr>
-      <td class="td-type" title="${i.type}">${TYPE_ICON[i.type]||'📄'}</td>
-      <td class="td-key"><a href="${i.url}" target="_blank">${i.key}</a></td>
-      <td class="td-summary"><a href="${i.url}" target="_blank">${i.summary.replace(/</g,'&lt;')}</a></td>
-      <td><span class="badge ${badgeCls(i.statusCat)}">${i.status}</span></td>
-      <td class="td-assignee">
-        <div class="av">${i.avatar?`<img src="${i.avatar}" alt="">`:initials(i.assignee)}</div>
-        <span class="av-name">${i.assignee||'未指派'}</span>
-      </td>
-      <td class="td-reporter" style="white-space:nowrap">
-        <div class="av">${i.reporterAvatar?`<img src="${i.reporterAvatar}" alt="">`:initials(i.reporter)}</div>
-        <span class="av-name">${i.reporter||'—'}</span>
-      </td>
-      <td class="td-date">${i.duedate !== '—' ? i.duedate : '<span style="color:#c1c7d0">未設定</span>'}</td>
-      <td class="td-date">${i.updated}</td>
-    </tr>`).join('');
+
+  resetDropdown('boardSelect', '載入中...');
+  resetDropdown('epicSelect', '載入中...');
+
+  // Load boards and epics in parallel
+  const [boards, epics] = await Promise.all([
+    fetch(`${SERVER}/boards?project=${project}`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${SERVER}/epics?project=${project}`).then(r=>r.json()).catch(()=>[])
+  ]);
+
+  // Boards
+  const bSel = document.getElementById('boardSelect');
+  bSel.disabled = false;
+  bSel.innerHTML = '<option value="">不指定看板</option>';
+  boards.forEach(b => {
+    const o = document.createElement('option');
+    o.value = b.id;
+    o.textContent = `${b.name}`;
+    bSel.appendChild(o);
+  });
+  if(boards.length === 0) {
+    bSel.innerHTML = '<option value="">此空間無看板</option>';
+    bSel.disabled = true;
+  }
+
+  // Epics
+  const eSel = document.getElementById('epicSelect');
+  eSel.disabled = false;
+  eSel.innerHTML = '<option value="">不指定 Epic</option>';
+  epics.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e.key;
+    o.textContent = `${e.key} · ${e.summary}`;
+    eSel.appendChild(o);
+  });
+  if(epics.length === 0) {
+    eSel.innerHTML = '<option value="">此空間無 Epic</option>';
+    eSel.disabled = true;
+  }
 }
 
-function renderChips(kw,stat,asgn,type,date,dueFrom,dueTo){
-  const chips=document.getElementById('chips');
-  chips.innerHTML='';
-  const add=(label,fn)=>{
-    const c=document.createElement('span');
-    c.className='chip';
-    c.innerHTML=label+` <span class="chip-x" onclick="${fn}">×</span>`;
-    chips.appendChild(c);
-  };
-  if(kw)      add('關鍵字：'+kw,       "document.getElementById('f-keyword').value='';applyFilters()");
-  if(stat)    add('狀態：'+stat,        "document.getElementById('f-status').value='';applyFilters()");
-  if(asgn)    add('負責人：'+asgn,      "document.getElementById('f-assignee').value='';applyFilters()");
-  if(type)    add('類型：'+type,        "document.getElementById('f-type').value='';applyFilters()");
-  if(date)    add('更新時間≥'+date,     "document.getElementById('f-date').value='';applyFilters()");
-  if(dueFrom) add('截止日期≥'+dueFrom, "document.getElementById('f-due-from').value='';applyFilters()");
-  if(dueTo)   add('截止日期≤'+dueTo,   "document.getElementById('f-due-to').value='';applyFilters()");
+function resetDropdown(id, text) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<option value="">${text}</option>`;
+  el.disabled = true;
 }
 
-function resetFilters(){
-  ['f-keyword','f-status','f-assignee','f-type','f-date','f-due-from','f-due-to'].forEach(id=>document.getElementById(id).value='');
-  applyFilters();
+async function confirmSelection() {
+  selectedProject = document.getElementById('projectSelect').value;
+  selectedBoard   = document.getElementById('boardSelect').value;
+  selectedEpic    = document.getElementById('epicSelect').value;
+  if(!selectedProject) return;
+
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true; btn.textContent = '載入中...';
+
+  try {
+    const res = await fetch(`${SERVER}/meta?project=${selectedProject}`);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    meta = await res.json();
+
+    // Update card2 desc
+    const parts = [];
+    const pSel = document.getElementById('projectSelect');
+    parts.push(`空間：${pSel.options[pSel.selectedIndex]?.text}`);
+    if(selectedBoard) {
+      const bSel = document.getElementById('boardSelect');
+      parts.push(`看板：${bSel.options[bSel.selectedIndex]?.text}`);
+    }
+    if(selectedEpic) {
+      const eSel = document.getElementById('epicSelect');
+      parts.push(`Epic：${eSel.options[eSel.selectedIndex]?.text}`);
+    }
+    document.getElementById('card2Desc').innerHTML =
+      `每一列代表一張 ticket，<span style="color:#de350b">*</span> 為必填。<br>
+       <span style="font-size:12px;color:var(--muted)">${parts.join('　·　')}</span>`;
+
+    document.getElementById('inputBody').innerHTML = '';
+    rowId = 0;
+    for(let i=0;i<5;i++) addRow();
+
+    document.getElementById('card2').classList.remove('hidden');
+    setStep(2);
+    document.getElementById('card2').scrollIntoView({behavior:'smooth'});
+  } catch(e) {
+    alert('載入欄位選項失敗：' + e.message);
+  }
+  btn.disabled = false; btn.textContent = '確認 →';
 }
 
-function setLoading(on){
-  const btn=document.getElementById('refreshBtn');
-  btn.disabled=on;
-  btn.classList.toggle('loading',on);
+function makeOpts(arr, valueKey, labelFn, placeholder='—') {
+  return `<option value="">${placeholder}</option>` +
+    [...arr].sort((a,b)=>labelFn(a).localeCompare(labelFn(b)))
+      .map(x=>`<option value="${x[valueKey]}">${labelFn(x)}</option>`).join('');
 }
 
-// 自動載入
-fetchTickets();
+function addRow() {
+  rowId++;
+  const id = rowId;
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + id; tr.dataset.id = id;
+
+  const typeOpts = `<option value="">請選擇...</option>` +
+    [...meta.issueTypes].sort((a,b)=>a.name.localeCompare(b.name))
+      .map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const prioOpts = makeOpts(meta.priorities, 'id', p=>p.name);
+  const userOpts = makeOpts(meta.assignees, 'accountId', u=>u.displayName, '不指派');
+
+  tr.innerHTML = `
+    <td class="row-num">${id}</td>
+    <td><input class="cell-input" id="s-${id}" placeholder="Ticket 標題..." oninput="updateSummary()"></td>
+    <td><input class="cell-input" id="d-${id}" placeholder="描述（選填）"></td>
+    <td><select class="cell-select" id="t-${id}"><option value="">請選擇...</option>${typeOpts}</select></td>
+    <td><select class="cell-select" id="p-${id}">${prioOpts}</select></td>
+    <td><select class="cell-select" id="a-${id}">${userOpts}</select></td>
+    <td><input class="cell-input" id="dd-${id}" type="date" style="font-family:'IBM Plex Mono',monospace;font-size:11px"></td>
+    <td><button class="remove-btn" onclick="removeRow(${id})">✕</button></td>`;
+  document.getElementById('inputBody').appendChild(tr);
+  updateCount();
+}
+
+function addMultiRows() {
+  const n = Math.min(parseInt(document.getElementById('multiCount').value)||5, 50);
+  for(let i=0;i<n;i++) addRow();
+}
+
+function removeRow(id) {
+  document.getElementById('row-'+id)?.remove();
+  updateCount(); updateSummary();
+}
+
+function clearAll() {
+  if(!confirm('確定要清除所有列嗎？')) return;
+  document.getElementById('inputBody').innerHTML = '';
+  rowId = 0;
+  for(let i=0;i<5;i++) addRow();
+  updateSummary();
+}
+
+function updateCount() {
+  const n = document.getElementById('inputBody').querySelectorAll('tr').length;
+  document.getElementById('rowCount').textContent = n + ' 列';
+}
+
+function updateSummary() {
+  const rows = getRows();
+  const valid   = rows.filter(r=>r.valid).length;
+  const invalid = rows.filter(r=>(r.summary||r.issueTypeId)&&!r.valid).length;
+  const empty   = rows.filter(r=>!r.summary&&!r.issueTypeId).length;
+  document.getElementById('summaryBar').innerHTML = `
+    <span><span class="dot dot-ok"></span>${valid} 筆可建立</span>
+    ${invalid>0?`<span><span class="dot dot-err"></span>${invalid} 筆有錯誤</span>`:''}
+    <span><span class="dot dot-empty"></span>${empty} 列空白（將跳過）</span>
+    <span style="margin-left:auto;font-size:12px;color:var(--muted)">${rows.length} 列</span>`;
+  document.getElementById('submitBtn').querySelector('.btn-label').textContent = `✚ 建立 ${valid} 筆 Tickets`;
+}
+
+function getRows() {
+  return [...document.getElementById('inputBody').querySelectorAll('tr')].map(tr => {
+    const id = tr.dataset.id;
+    const summary     = (document.getElementById('s-'+id)?.value||'').trim();
+    const description = (document.getElementById('d-'+id)?.value||'').trim();
+    const issueTypeId = document.getElementById('t-'+id)?.value||'';
+    const priorityId  = document.getElementById('p-'+id)?.value||'';
+    const assigneeId  = document.getElementById('a-'+id)?.value||'';
+    const duedate     = document.getElementById('dd-'+id)?.value||'';
+    return { id, summary, description, issueTypeId, priorityId, assigneeId, duedate, valid: !!summary && !!issueTypeId };
+  });
+}
+
+async function submitBatch() {
+  updateSummary();
+  const validRows = getRows().filter(r=>r.valid);
+  if(validRows.length===0){ alert('請至少填寫一筆有效的 ticket'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.classList.add('loading');
+
+  try {
+    const res = await fetch(`${SERVER}/create-batch`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ issues: validRows.map(r=>({
+        project:     selectedProject,
+        summary:     r.summary,
+        description: r.description,
+        issueType:   r.issueTypeId,
+        priority:    r.priorityId,
+        assignee:    r.assigneeId,
+        duedate:     r.duedate,
+        epic:        selectedEpic || '',
+      }))})
+    });
+    const data = await res.json();
+    renderResult(data, validRows);
+    setStep(3);
+  } catch(e) {
+    alert('建立失敗：' + e.message);
+  }
+  btn.disabled = false; btn.classList.remove('loading');
+}
+
+function renderResult(data, rows) {
+  const created = data.issues||[];
+  const errors  = data.errors ||[];
+  document.getElementById('resultStats').innerHTML = `
+    <span class="stat-ok">✅ 成功建立 ${created.length} 筆</span>
+    ${errors.length>0?`<span class="stat-fail">❌ 失敗 ${errors.length} 筆</span>`:''}`;
+  document.getElementById('resultList').innerHTML =
+    created.map((issue,i)=>{
+      const url=`https://viewsonic-vsi.atlassian.net/browse/${issue.key}`;
+      return `<div class="result-row"><span class="rkey"><a href="${url}" target="_blank">${issue.key}</a></span><span style="color:var(--muted);font-size:12px">${rows[i]?.summary||''}</span></div>`;
+    }).join('') +
+    errors.map((err,i)=>`<div class="result-row"><span style="color:#bf2600;font-size:12px">✗ 失敗</span><span style="color:#bf2600;font-size:12px">${rows[created.length+i]?.summary||''} — ${Object.values(err.elementErrors?.errors||{}).join('、')||'未知錯誤'}</span></div>`).join('');
+  document.getElementById('card3').classList.remove('hidden');
+  document.getElementById('card3').scrollIntoView({behavior:'smooth'});
+}
+
+function setStep(n) {
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('step'+i);
+    el.classList.remove('active','done');
+    if(i<n) el.classList.add('done');
+    if(i===n) el.classList.add('active');
+  });
+}
+
+function resetAll() {
+  document.getElementById('card2').classList.add('hidden');
+  document.getElementById('card3').classList.add('hidden');
+  document.getElementById('inputBody').innerHTML='';
+  rowId=0; selectedProject=''; selectedBoard=''; selectedEpic='';
+  setStep(1);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+loadProjects();
 </script>
 </body>
 </html>
