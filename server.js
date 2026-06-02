@@ -84,7 +84,7 @@ const server = http.createServer(async (req, res) => {
     const pageToken = parsed.query.pageToken || '';
     const epic      = parsed.query.epic || '';
     const boardId   = parsed.query.boardId || '';
-    const fields    = 'summary,status,priority,assignee,issuetype,updated,duedate,reporter';
+    const fields    = 'summary,status,priority,assignee,issuetype,updated,created,duedate,reporter';
 
     let jqlParts = [`project=${project}`];
     if (epic) jqlParts.push(`"Epic Link"="${epic}" OR parentEpic="${epic}" OR parent="${epic}"`);
