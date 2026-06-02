@@ -90,12 +90,6 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
     重新整理
   </button>
-  <a href="create.html" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:#0052CC;border:1px solid #0052CC;border-radius:6px;color:white;font-size:12px;text-decoration:none;font-family:'IBM Plex Sans',sans-serif;transition:background .15s;" onmouseover="this.style.background='#0065ff'" onmouseout="this.style.background='#0052CC'">
-    ✚ 建立 Ticket
-  </a>
-  <a href="batch.html" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:transparent;border:1px solid #0052CC;border-radius:6px;color:#0052CC;font-size:12px;text-decoration:none;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;" onmouseover="this.style.background='#deebff'" onmouseout="this.style.background='transparent'">
-    ⊞ 批次建立
-  </a>
 </div>
 
 <div class="wrap">
@@ -145,12 +139,8 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
         <input class="fg-input" id="f-date" type="date" oninput="applyFilters()">
       </div>
       <div class="filter-group">
-        <div class="fg-label">截止日期（起）</div>
-        <input class="fg-input" id="f-due-from" type="date" oninput="applyFilters()">
-      </div>
-      <div class="filter-group">
-        <div class="fg-label">截止日期（迄）</div>
-        <input class="fg-input" id="f-due-to" type="date" oninput="applyFilters()">
+        <div class="fg-label">截止日期</div>
+        <input class="fg-input" id="f-due" type="date" oninput="applyFilters()">
       </div>
       <div class="filter-actions">
         <button class="btn-reset" onclick="resetFilters()">✕ 清除篩選</button>
@@ -168,7 +158,7 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
         <th id="th-status" onclick="setSort('status')">Status <i class="sort-arrow">↕</i></th>
         <th id="th-assignee" onclick="setSort('assignee')">Assignee <i class="sort-arrow">↕</i></th>
         <th id="th-reporter" onclick="setSort('reporter')">Reporter <i class="sort-arrow">↕</i></th>
-        <th id="th-duedate" onclick="setSort('duedate')">目標完成時間 <i class="sort-arrow">↕</i></th>
+        <th id="th-duedate" onclick="setSort('duedate')">截止日期 <i class="sort-arrow">↕</i></th>
         <th id="th-updated" onclick="setSort('updated')">Updated <i class="sort-arrow">↕</i></th>
       </tr></thead>
       <tbody id="tbody">
@@ -286,6 +276,7 @@ async function fetchTickets(){
       reporterAvatar: i.fields.reporter?.avatarUrls?.['24x24'] || '',
       type:      i.fields.issuetype?.name || 'Story',
       updated:   fmtDate(i.fields.updated),
+      created:   fmtDate(i.fields.created),
       duedate:   fmtDate(i.fields.duedate),
       url:       `https://viewsonic-vsi.atlassian.net/browse/${i.key}`
     }));
@@ -328,17 +319,15 @@ function applyFilters(){
   const asgn    = document.getElementById('f-assignee').value;
   const type    = document.getElementById('f-type').value;
   const date    = document.getElementById('f-date').value;
-  const dueFrom = document.getElementById('f-due-from').value;
-  const dueTo   = document.getElementById('f-due-to').value;
+  const due     = document.getElementById('f-due').value;
 
   let filtered = allIssues.filter(i => {
-    if(kw      && !i.key.toLowerCase().includes(kw) && !i.summary.toLowerCase().includes(kw)) return false;
-    if(stat    && i.status   !== stat)  return false;
-    if(asgn    && i.assignee !== asgn)  return false;
-    if(type    && i.type     !== type)  return false;
-    if(date    && i.updated  <  date)   return false;
-    if(dueFrom && (i.duedate === '—' || i.duedate < dueFrom)) return false;
-    if(dueTo   && (i.duedate === '—' || i.duedate > dueTo))   return false;
+    if(kw   && !i.key.toLowerCase().includes(kw) && !i.summary.toLowerCase().includes(kw)) return false;
+    if(stat && i.status   !== stat)  return false;
+    if(asgn && i.assignee !== asgn)  return false;
+    if(type && i.type     !== type)  return false;
+    if(date && i.updated  <  date)   return false;
+    if(due  && (i.duedate === '—' || i.duedate !== due)) return false;
     return true;
   });
 
@@ -361,7 +350,7 @@ function applyFilters(){
   });
 
   renderTable(filtered);
-  renderChips(kw,stat,asgn,type,date,dueFrom,dueTo);
+  renderChips(kw,stat,asgn,type,date,due);
   document.getElementById('footer').textContent = filtered.length+' / '+allIssues.length+' 筆 tickets';
 }
 
@@ -386,11 +375,11 @@ function renderTable(data){
         <span class="av-name">${i.reporter||'—'}</span>
       </td>
       <td class="td-date">${i.duedate !== '—' ? i.duedate : '<span style="color:#c1c7d0">未設定</span>'}</td>
-      <td class="td-date">${i.updated}</td>
+      <td class="td-date">${i.updated||'—'}</td>
     </tr>`).join('');
 }
 
-function renderChips(kw,stat,asgn,type,date,dueFrom,dueTo){
+function renderChips(kw,stat,asgn,type,date,due){
   const chips=document.getElementById('chips');
   chips.innerHTML='';
   const add=(label,fn)=>{
@@ -399,17 +388,16 @@ function renderChips(kw,stat,asgn,type,date,dueFrom,dueTo){
     c.innerHTML=label+` <span class="chip-x" onclick="${fn}">×</span>`;
     chips.appendChild(c);
   };
-  if(kw)      add('關鍵字：'+kw,       "document.getElementById('f-keyword').value='';applyFilters()");
-  if(stat)    add('狀態：'+stat,        "document.getElementById('f-status').value='';applyFilters()");
-  if(asgn)    add('負責人：'+asgn,      "document.getElementById('f-assignee').value='';applyFilters()");
-  if(type)    add('類型：'+type,        "document.getElementById('f-type').value='';applyFilters()");
-  if(date)    add('更新時間≥'+date,     "document.getElementById('f-date').value='';applyFilters()");
-  if(dueFrom) add('截止日期≥'+dueFrom, "document.getElementById('f-due-from').value='';applyFilters()");
-  if(dueTo)   add('截止日期≤'+dueTo,   "document.getElementById('f-due-to').value='';applyFilters()");
+  if(kw)   add('關鍵字：'+kw,      "document.getElementById('f-keyword').value='';applyFilters()");
+  if(stat) add('狀態：'+stat,       "document.getElementById('f-status').value='';applyFilters()");
+  if(asgn) add('負責人：'+asgn,     "document.getElementById('f-assignee').value='';applyFilters()");
+  if(type) add('類型：'+type,       "document.getElementById('f-type').value='';applyFilters()");
+  if(date) add('更新時間≥'+date,    "document.getElementById('f-date').value='';applyFilters()");
+  if(due)  add('截止日期：'+due,    "document.getElementById('f-due').value='';applyFilters()");
 }
 
 function resetFilters(){
-  ['f-keyword','f-status','f-assignee','f-type','f-date','f-due-from','f-due-to'].forEach(id=>document.getElementById(id).value='');
+  ['f-keyword','f-status','f-assignee','f-type','f-date','f-due'].forEach(id=>document.getElementById(id).value='');
   applyFilters();
 }
 
