@@ -326,7 +326,7 @@ function renderTable(data){
         <div class="av">${i.avatar?`<img src="${i.avatar}" alt="">`:initials(i.assignee)}</div>
         <span class="av-name">${i.assignee||'未指派'}</span>
       </td>
-      <td class="td-assignee">
+      <td class="td-assignee" style="white-space:nowrap">
         <div class="av">${i.reporterAvatar?`<img src="${i.reporterAvatar}" alt="">`:initials(i.reporter)}</div>
         <span class="av-name">${i.reporter||'—'}</span>
       </td>
