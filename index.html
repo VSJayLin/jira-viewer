@@ -65,8 +65,7 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
 .badge-todo{background:#f4f5f7;color:#42526e;border:1px solid #dfe1e6;}
 .badge-progress{background:#fffae6;color:#974f0c;border:1px solid #ffe380;}
 .badge-done{background:#e3fcef;color:#006644;border:1px solid #abf5d1;}
-.td-assignee{display:flex;align-items:center;gap:7px;}
-.td-reporter{display:flex;align-items:center;gap:7px;}
+.td-assignee,.td-reporter{white-space:nowrap;font-size:12px;color:var(--dim);}
 .av{width:22px;height:22px;border-radius:50%;background:#deebff;border:1px solid #b3d4ff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:#0052CC;flex-shrink:0;overflow:hidden;}
 .av img{width:100%;height:100%;object-fit:cover;}
 .av-name{font-size:12px;color:var(--dim);white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;}
@@ -366,14 +365,8 @@ function renderTable(data){
       <td class="td-key"><a href="${i.url}" target="_blank">${i.key}</a></td>
       <td class="td-summary"><a href="${i.url}" target="_blank">${i.summary.replace(/</g,'&lt;')}</a></td>
       <td><span class="badge ${badgeCls(i.statusCat)}">${i.status}</span></td>
-      <td class="td-assignee">
-        <div class="av">${i.avatar?`<img src="${i.avatar}" alt="">`:initials(i.assignee)}</div>
-        <span class="av-name">${i.assignee||'未指派'}</span>
-      </td>
-      <td class="td-reporter" style="white-space:nowrap">
-        <div class="av">${i.reporterAvatar?`<img src="${i.reporterAvatar}" alt="">`:initials(i.reporter)}</div>
-        <span class="av-name">${i.reporter||'—'}</span>
-      </td>
+      <td class="td-assignee">${i.assignee||'未指派'}</td>
+      <td class="td-reporter">${i.reporter||'—'}</td>
       <td class="td-date">${i.duedate !== '—' ? i.duedate : '<span style="color:#c1c7d0">未設定</span>'}</td>
       <td class="td-date">${i.updated||'—'}</td>
     </tr>`).join('');
