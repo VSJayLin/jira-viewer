@@ -129,7 +129,7 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
         </select>
       </div>
       <div class="filter-group">
-        <div class="fg-label">更新時間</div>
+        <div class="fg-label">更新日期（精確）</div>
         <input class="fg-input" id="f-date" type="date" oninput="applyFilters()">
       </div>
       <div class="filter-group">
@@ -320,7 +320,7 @@ function applyFilters(){
     if(stat && i.status   !== stat)  return false;
     if(asgn && i.assignee !== asgn)  return false;
     if(type && i.type     !== type)  return false;
-    if(date && i.updated  <  date)   return false;
+    if(date && i.updated !== date)   return false;
     if(due  && (i.duedate === '—' || i.duedate !== due)) return false;
     return true;
   });
