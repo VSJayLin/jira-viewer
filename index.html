@@ -126,11 +126,6 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
         <div class="fg-label">類型 Type</div>
         <select class="fg-select" id="f-type" onchange="applyFilters()">
           <option value="">全部</option>
-          <option value="Story">📋 Story</option>
-          <option value="Sub-task">↳ Sub-task</option>
-          <option value="Bug">🐛 Bug</option>
-          <option value="Task">✅ Task</option>
-          <option value="Epic">⚡ Epic</option>
         </select>
       </div>
       <div class="filter-group">
@@ -151,7 +146,7 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
   <div class="tbl-wrap">
     <table>
       <thead><tr>
-        <th></th>
+        <th id="th-type" onclick="setSort('type')" style="min-width:80px">Type <i class="sort-arrow">↕</i></th>
         <th id="th-key" onclick="setSort('key')">Key <i class="sort-arrow">↕</i></th>
         <th>Summary</th>
         <th id="th-status" onclick="setSort('status')">Status <i class="sort-arrow">↕</i></th>
@@ -161,7 +156,7 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
         <th id="th-updated" onclick="setSort('updated')">Updated <i class="sort-arrow">↕</i></th>
       </tr></thead>
       <tbody id="tbody">
-        <tr><td colspan="6"><div class="state-box"><div class="spinner"></div>載入中...</div></td></tr>
+        <tr><td colspan="9"><div class="state-box"><div class="spinner"></div>載入中...</div></td></tr>
       </tbody>
     </table>
     <div class="tbl-footer" id="footer"></div>
@@ -242,7 +237,7 @@ function fmtDate(s){ return s?s.slice(0,10):'—'; }
 async function fetchTickets(){
   setLoading(true);
   const tbody = document.getElementById('tbody');
-  tbody.innerHTML = '<tr><td colspan="8"><div class="state-box"><div class="spinner"></div>從 Jira 載入最新資料...</div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9"><div class="state-box"><div class="spinner"></div>從 Jira 載入最新資料...</div></td></tr>';
 
   try {
     let issues = [], pageToken = '';
@@ -286,7 +281,7 @@ async function fetchTickets(){
     applyFilters();
 
   } catch(err){
-    tbody.innerHTML = `<tr><td colspan="8"><div class="state-box err">❌ 無法載入資料：${err.message}<br><small style="color:#6b778c;margin-top:6px;display:block">請確認 Render 服務正在運作</small></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="state-box err">❌ 無法載入資料：${err.message}<br><small style="color:#6b778c;margin-top:6px;display:block">請確認 Render 服務正在運作</small></div></td></tr>`;
   }
   setLoading(false);
 }
@@ -356,12 +351,20 @@ function applyFilters(){
 function renderTable(data){
   const tbody = document.getElementById('tbody');
   if(!data.length){
-    tbody.innerHTML='<tr><td colspan="8"><div class="state-box">沒有符合條件的 ticket</div></td></tr>';
+    tbody.innerHTML='<tr><td colspan="9"><div class="state-box">沒有符合條件的 ticket</div></td></tr>';
     return;
   }
+
+  // Update type filter options dynamically from actual data
+  const typeFilter = document.getElementById('f-type');
+  const currentTypeVal = typeFilter.value;
+  const allTypes = [...new Set(allIssues.map(i=>i.type).filter(Boolean))].sort();
+  typeFilter.innerHTML = '<option value="">全部</option>' +
+    allTypes.map(t=>`<option value="${t}" ${t===currentTypeVal?'selected':''}>${TYPE_ICON[t]||'📄'} ${t}</option>`).join('');
+
   tbody.innerHTML = data.map(i=>`
     <tr>
-      <td class="td-type" title="${i.type}">${TYPE_ICON[i.type]||'📄'}</td>
+      <td class="td-type" title="${i.type}" style="font-size:12px;color:var(--dim);white-space:nowrap">${TYPE_ICON[i.type]||'📄'} ${i.type}</td>
       <td class="td-key"><a href="${i.url}" target="_blank">${i.key}</a></td>
       <td class="td-summary"><a href="${i.url}" target="_blank">${i.summary.replace(/</g,'&lt;')}</a></td>
       <td><span class="badge ${badgeCls(i.statusCat)}">${i.status}</span></td>
@@ -391,7 +394,12 @@ function renderChips(kw,stat,asgn,type,date,due){
 
 function resetFilters(){
   ['f-keyword','f-status','f-assignee','f-type','f-date','f-due'].forEach(id=>document.getElementById(id).value='');
-  applyFilters();
+  // Reset board and epic
+  document.getElementById('f-board').value = '';
+  document.getElementById('f-epic').value = '';
+  currentBoardId = '';
+  currentEpic = '';
+  fetchTickets();
 }
 
 function setLoading(on){
