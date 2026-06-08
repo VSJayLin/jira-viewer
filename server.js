@@ -78,6 +78,38 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
+  // GET /projects — list all accessible projects
+  if (req.method === 'GET' && parsed.pathname === '/projects') {
+    const opts = {
+      hostname: JIRA_DOMAIN,
+      path: '/rest/api/3/project?maxResults=100&orderBy=name',
+      method: 'GET',
+      headers: { 'Authorization': 'Basic ' + AUTH, 'Accept': 'application/json' }
+    };
+    const apiReq = https.request(opts, (r) => {
+      let body = ''; r.on('data', c => body += c);
+      r.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          const projects = (Array.isArray(data) ? data : (data.values || [])).map(p => ({
+            key: p.key, name: p.name, id: p.id
+          }));
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify(projects));
+        } catch(e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+    });
+    apiReq.on('error', (e) => {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    });
+    apiReq.end();
+    return;
+  }
+
   // GET /tickets
   if (req.method === 'GET' && parsed.pathname === '/tickets') {
     const project   = parsed.query.project || 'OK';
