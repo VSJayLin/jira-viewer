@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ODM KTC · IFPG1-2 Development Document</title>
+<title>JIRA Viewer</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f4f5f7;--surf:#fff;--surf2:#f8f9fa;--bdr:#dfe1e6;--text:#172b4d;--muted:#6b778c;--dim:#42526e;--acc:#0052CC;--acc2:#0065ff;}
@@ -81,9 +81,9 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
 
 <div class="topbar">
   <div class="logo"><svg viewBox="0 0 24 24"><path d="M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.056A5.215 5.215 0 0012.575 24V12.518a1.005 1.005 0 00-1.004-1.005zm5.723-5.756H5.757a5.215 5.215 0 005.214 5.214h2.13v2.057a5.215 5.215 0 005.215 5.214V6.762a1.005 1.005 0 00-1.022-1.005zM23.013 0H11.455a5.215 5.215 0 005.215 5.215h2.129v2.057A5.215 5.215 0 0024 12.486V1.005A1.005 1.005 0 0023.013 0z"/></svg></div>
-  <span class="tb-title">ODM KTC</span>
+  <span class="tb-title">JIRA Viewer</span>
   <div class="tb-sep"></div>
-  <span class="tb-sub">IFPG1-2 · Development Document</span>
+  <span class="tb-sub">All Projects</span>
   <span class="tb-ts" id="tb-ts"></span>
   <button class="refresh-btn" id="refreshBtn" onclick="fetchTickets()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
@@ -109,6 +109,12 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
       <div class="filter-group">
         <div class="fg-label">狀態 Status</div>
         <select class="fg-select" id="f-status" onchange="applyFilters()"><option value="">全部</option></select>
+      </div>
+      <div class="filter-group">
+        <div class="fg-label">專案 Project</div>
+        <select class="fg-select" id="f-project" onchange="onProjectChange()">
+          <option value="">載入中...</option>
+        </select>
       </div>
       <div class="filter-group">
         <div class="fg-label">看板 Board</div>
@@ -166,7 +172,7 @@ td{padding:10px 14px;font-size:13px;vertical-align:middle;}
 <script>
 // ── 設定：指向 Render server，不含任何 token ──
 const SERVER = 'https://jira-viewer-amap.onrender.com';
-const PROJECT = 'OK';
+let PROJECT = 'OK';
 
 const TYPE_ICON = {Story:'📋',Bug:'🐛',Task:'✅','Sub-task':'↳',Epic:'⚡'};
 let allIssues = [];
@@ -175,25 +181,62 @@ let sortAsc = true;
 let currentBoardId = '';
 let currentEpic = '';
 
-// ── Load boards and epics on startup ──
-async function loadBoardsAndEpics() {
+// ── Load all projects ──
+async function loadProjects() {
+  try {
+    const res = await fetch(`${SERVER}/projects`);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const projects = await res.json();
+    const sel = document.getElementById('f-project');
+    sel.innerHTML = '<option value="">全部專案</option>';
+    [...projects].sort((a,b)=>a.name.localeCompare(b.name)).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.key;
+      o.textContent = `${p.name} (${p.key})`;
+      if(p.key === 'OK') o.selected = true;
+      sel.appendChild(o);
+    });
+    // Load boards/epics for default project
+    await loadBoardsAndEpics(PROJECT);
+  } catch(e) { console.warn('loadProjects error:', e); }
+}
+
+async function onProjectChange() {
+  PROJECT = document.getElementById('f-project').value || 'OK';
+  currentBoardId = '';
+  currentEpic = '';
+  document.getElementById('f-board').value = '';
+  document.getElementById('f-epic').value = '';
+  document.getElementById('f-board').innerHTML = '<option value="">載入中...</option>';
+  document.getElementById('f-epic').innerHTML = '<option value="">載入中...</option>';
+  await loadBoardsAndEpics(PROJECT);
+  await fetchTickets();
+}
+
+// ── Load boards and epics ──
+async function loadBoardsAndEpics(project) {
   try {
     const [boards, epics] = await Promise.all([
-      fetch(`${SERVER}/boards?project=${PROJECT}`).then(r=>r.json()).catch(()=>[]),
-      fetch(`${SERVER}/epics?project=${PROJECT}`).then(r=>r.json()).catch(()=>[])
+      fetch(`${SERVER}/boards?project=${project}`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${SERVER}/epics?project=${project}`).then(r=>r.json()).catch(()=>[])
     ]);
     const bSel = document.getElementById('f-board');
+    bSel.innerHTML = '<option value="">全部看板</option>';
     boards.forEach(b => {
       const o = document.createElement('option');
       o.value = b.id; o.textContent = b.name;
       bSel.appendChild(o);
     });
+    if(boards.length === 0) bSel.innerHTML = '<option value="">此專案無看板</option>';
+
     const eSel = document.getElementById('f-epic');
+    eSel.innerHTML = '<option value="">全部 Epic</option>';
     epics.forEach(e => {
       const o = document.createElement('option');
       o.value = e.key; o.textContent = `${e.key} · ${e.summary}`;
       eSel.appendChild(o);
     });
+    if(epics.length === 0) eSel.innerHTML = '<option value="">此專案無 Epic</option>';
   } catch(e) { console.warn('loadBoardsAndEpics error:', e); }
 }
 
@@ -394,7 +437,6 @@ function renderChips(kw,stat,asgn,type,date,due){
 
 function resetFilters(){
   ['f-keyword','f-status','f-assignee','f-type','f-date','f-due'].forEach(id=>document.getElementById(id).value='');
-  // Reset board and epic
   document.getElementById('f-board').value = '';
   document.getElementById('f-epic').value = '';
   currentBoardId = '';
@@ -409,7 +451,7 @@ function setLoading(on){
 }
 
 // 自動載入
-loadBoardsAndEpics();
+loadProjects();
 fetchTickets();
 </script>
 </body>
