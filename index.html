@@ -183,30 +183,48 @@ let currentEpic = '';
 
 // ── Load all projects ──
 async function loadProjects() {
+  // Show placeholder in table
+  document.getElementById('tbody').innerHTML =
+    '<tr><td colspan="9"><div class="state-box">← 請先選擇專案以載入 Tickets</div></td></tr>';
+  // Stats show dashes
+  ['s-tot','s-todo','s-prog','s-done'].forEach(id=>document.getElementById(id).textContent='—');
+
   try {
     const res = await fetch(`${SERVER}/projects`);
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const projects = await res.json();
     const sel = document.getElementById('f-project');
-    sel.innerHTML = '<option value="">全部專案</option>';
+    sel.innerHTML = '<option value="">— 請選擇專案 —</option>';
     [...projects].sort((a,b)=>a.name.localeCompare(b.name)).forEach(p => {
       const o = document.createElement('option');
       o.value = p.key;
       o.textContent = `${p.name} (${p.key})`;
-      if(p.key === 'OK') o.selected = true;
       sel.appendChild(o);
     });
-    // Load boards/epics for default project
-    await loadBoardsAndEpics(PROJECT);
-  } catch(e) { console.warn('loadProjects error:', e); }
+    PROJECT = ''; // No project selected by default
+  } catch(e) {
+    document.getElementById('f-project').innerHTML = '<option value="">載入失敗</option>';
+    console.warn('loadProjects error:', e);
+  }
 }
 
 async function onProjectChange() {
-  PROJECT = document.getElementById('f-project').value || 'OK';
+  PROJECT = document.getElementById('f-project').value;
   currentBoardId = '';
   currentEpic = '';
   document.getElementById('f-board').value = '';
   document.getElementById('f-epic').value = '';
+
+  if (!PROJECT) {
+    // No project selected
+    document.getElementById('tbody').innerHTML =
+      '<tr><td colspan="9"><div class="state-box">← 請先選擇專案以載入 Tickets</div></td></tr>';
+    ['s-tot','s-todo','s-prog','s-done'].forEach(id=>document.getElementById(id).textContent='—');
+    document.getElementById('f-board').innerHTML = '<option value="">全部看板</option>';
+    document.getElementById('f-epic').innerHTML = '<option value="">全部 Epic</option>';
+    return;
+  }
+
   document.getElementById('f-board').innerHTML = '<option value="">載入中...</option>';
   document.getElementById('f-epic').innerHTML = '<option value="">載入中...</option>';
   await loadBoardsAndEpics(PROJECT);
@@ -341,6 +359,10 @@ function buildDropdowns(){
 }
 
 function updateStats(){
+  if(!PROJECT || allIssues.length === 0 && !PROJECT) {
+    ['s-tot','s-todo','s-prog','s-done'].forEach(id=>document.getElementById(id).textContent='—');
+    return;
+  }
   const t=allIssues.length;
   const p=allIssues.filter(i=>i.statusCat==='indeterminate').length;
   const d=allIssues.filter(i=>i.statusCat==='done').length;
@@ -452,7 +474,6 @@ function setLoading(on){
 
 // 自動載入
 loadProjects();
-fetchTickets();
 </script>
 </body>
 </html>
