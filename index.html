@@ -541,10 +541,7 @@ function vApplyFilters() {
   });
 
   // Sort
-  filtered.sort((a,b) => {
-    let va=a[vSortKey]||'', vb=b[vSortKey]||'';
-    return vSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-  });
+  filtered.sort((a,b) => vSortCompare(a, b, vSortKey, vSortAsc));
 
   vRenderTable(filtered);
   vRenderChips(kw,stat,asgn,type,date,due);
@@ -606,6 +603,17 @@ function vSetSort(key) {
   const th = document.getElementById('th-'+key);
   if(th){ th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = vSortAsc?'↑':'↓'; }
   vApplyFilters();
+}
+
+function vSortCompare(a, b, key, asc) {
+  let va = a[key] || '', vb = b[key] || '';
+  // Numeric sort for key field (e.g. OC-443 vs OC-3406)
+  if(key === 'key') {
+    const numA = parseInt(va.replace(/^[^-]+-/, '')) || 0;
+    const numB = parseInt(vb.replace(/^[^-]+-/, '')) || 0;
+    return asc ? numA - numB : numB - numA;
+  }
+  return asc ? va.localeCompare(vb) : vb.localeCompare(va);
 }
 
 function vSetLoading(on) {
