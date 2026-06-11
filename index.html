@@ -58,9 +58,10 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#deebff;border:1px solid #b3d4ff;border-radius:12px;font-size:11px;color:#0052CC;font-family:'IBM Plex Mono',monospace;}
 .chip-x{cursor:pointer;opacity:.6;font-size:13px;line-height:1;}
 .chip-x:hover{opacity:1;}
-.tbl-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;overflow-x:auto;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.tbl-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.tbl-scroll{overflow-x:auto;}
 table.v-table{width:100%;min-width:900px;border-collapse:collapse;}
-table.v-table thead tr{border-bottom:1px solid var(--bdr);position:sticky;top:49px;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+table.v-table thead tr{border-bottom:1px solid var(--bdr);position:sticky;top:49px;z-index:2;box-shadow:0 2px 4px rgba(0,0,0,.06);}
 table.v-table th{text-align:left;padding:8px 10px;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;background:var(--surf2);white-space:nowrap;cursor:pointer;user-select:none;}
 table.v-table th:hover{color:var(--dim);}
 table.v-table th.sorted{color:#0052CC;}
@@ -244,6 +245,7 @@ table.c-table td{padding:7px 8px;vertical-align:middle;}
     </div>
     <!-- Table -->
     <div class="tbl-wrap">
+      <div class="tbl-scroll">
       <table class="v-table">
         <thead><tr>
           <th id="th-type" onclick="vSetSort('type')" style="min-width:80px">Type <i class="sort-arrow">↕</i></th>
@@ -259,6 +261,7 @@ table.c-table td{padding:7px 8px;vertical-align:middle;}
           <tr><td colspan="9"><div class="state-box">← 請先選擇專案以載入 Tickets</div></td></tr>
         </tbody>
       </table>
+      </div>
       <div class="tbl-footer" id="footer"></div>
     </div>
   </div>
