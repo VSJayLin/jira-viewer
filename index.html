@@ -558,7 +558,13 @@ function toggleCol(btn){
   const col=btn.dataset.col;
   if(visCols.has(col)){visCols.delete(col);btn.classList.remove('on');}
   else{visCols.add(col);btn.classList.add('on');}
-  document.querySelectorAll(`[data-col="${col}"]`).forEach(el=>el.style.display=visCols.has(col)?'':'none');
+  // Update th visibility
+  const th=document.querySelector(`th[data-col="${col}"]`);
+  if(th) th.style.display=visCols.has(col)?'':'none';
+  // Update all td with data-col in tbody (existing rows)
+  document.querySelectorAll(`#tbody td[data-col="${col}"]`).forEach(td=>{
+    td.style.display=visCols.has(col)?'':'none';
+  });
 }
 
 async function vLoadProjects(){
@@ -761,18 +767,17 @@ function vRenderTable(data){
     const od=i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done';
     const isSel=selectedKeys.has(i.key);
     const pc=PCOL[i.priority]||'var(--muted)';
-    const dHide=col=>visCols.has(col)?'':'display:none';
     return `<tr onclick="openModal('${i.key}')" class="${isSel?'sel-row':''}">
       <td class="td-cb" onclick="event.stopPropagation()"><input type="checkbox" ${isSel?'checked':''} onchange="toggleSel('${i.key}',this)"></td>
-      <td data-col="type" style="${dHide('type')};font-size:10px;color:var(--dim);white-space:nowrap">${TIPO[i.type]||'📄'} ${i.type}</td>
+      <td data-col="type" style="font-size:10px;color:var(--dim);white-space:nowrap;${visCols.has('type')?'':'display:none'}">${TIPO[i.type]||'📄'} ${i.type}</td>
       <td class="td-key" onclick="event.stopPropagation()"><a href="${i.url}" target="_blank">${i.key}</a></td>
       <td class="td-sum" title="${i.summary.replace(/"/g,'&quot;')}">${i.summary.replace(/</g,'&lt;')}</td>
-      <td data-col="status" style="${dHide('status')}"><span class="badge ${bCls(i.statusCat)}">${i.status}</span></td>
-      <td data-col="priority" style="${dHide('priority')};font-size:10px;color:${pc};white-space:nowrap">${i.priority||'—'}</td>
-      <td data-col="assignee" class="td-per" style="${dHide('assignee')}" title="${i.assignee}">${i.assignee||'未指派'}</td>
-      <td data-col="reporter" class="td-per" style="${dHide('reporter')}" title="${i.reporter}">${i.reporter||'—'}</td>
-      <td data-col="duedate" class="td-dt${od?' od':''}" style="${dHide('duedate')}">${fmtD(i.duedate)}${od?' ⚠':''}</td>
-      <td data-col="updated" class="td-dt" style="${dHide('updated')}">${fmtD(i.updated)}</td>
+      <td data-col="status" style="${visCols.has('status')?'':'display:none'}"><span class="badge ${bCls(i.statusCat)}">${i.status}</span></td>
+      <td data-col="priority" style="font-size:10px;color:${pc};white-space:nowrap;${visCols.has('priority')?'':'display:none'}">${i.priority||'—'}</td>
+      <td data-col="assignee" class="td-per" title="${i.assignee}" style="${visCols.has('assignee')?'':'display:none'}">${i.assignee||'未指派'}</td>
+      <td data-col="reporter" class="td-per" title="${i.reporter}" style="${visCols.has('reporter')?'':'display:none'}">${i.reporter||'—'}</td>
+      <td data-col="duedate" class="td-dt${od?' od':''}" style="${visCols.has('duedate')?'':'display:none'}">${fmtD(i.duedate)}${od?' ⚠':''}</td>
+      <td data-col="updated" class="td-dt" style="${visCols.has('updated')?'':'display:none'}">${fmtD(i.updated)}</td>
     </tr>`;
   }).join('');
 }
