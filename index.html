@@ -771,7 +771,7 @@ function vRenderTable(data){
       <td class="td-cb" onclick="event.stopPropagation()"><input type="checkbox" ${isSel?'checked':''} onchange="toggleSel('${i.key}',this)"></td>
       <td data-col="type" style="font-size:10px;color:var(--dim);white-space:nowrap;${visCols.has('type')?'':'display:none'}">${TIPO[i.type]||'📄'} ${i.type}</td>
       <td class="td-key" onclick="event.stopPropagation()"><a href="${i.url}" target="_blank">${i.key}</a></td>
-      <td class="td-sum" title="${i.summary.replace(/"/g,'&quot;')}">${i.summary.replace(/</g,'&lt;')}</td>
+      <td class="td-sum" title="${i.summary.replace(/"/g,'&quot;')}" ondblclick="event.stopPropagation();inlineEditSum('${i.key}',this)">${i.summary.replace(/</g,'&lt;')}</td>
       <td data-col="status" style="${visCols.has('status')?'':'display:none'}"><span class="badge ${bCls(i.statusCat)}">${i.status}</span></td>
       <td data-col="priority" style="font-size:10px;color:${pc};white-space:nowrap;${visCols.has('priority')?'':'display:none'}">${i.priority||'—'}</td>
       <td data-col="assignee" class="td-per" title="${i.assignee}" style="${visCols.has('assignee')?'':'display:none'}">${i.assignee||'未指派'}</td>
@@ -1011,8 +1011,14 @@ function renderModal(issue,transitions,meta){
   const assignees=meta?.assignees||[];
 
   document.getElementById('mBody').innerHTML=`
-    <div class="modal-sum">${(f.summary||'').replace(/</g,'&lt;')}</div>
-    ${desc?`<div class="msec"><div class="msec-title">Description</div><div class="mdesc">${desc.replace(/</g,'&lt;')}</div></div>`:''}
+    <div class="msec">
+      <div class="msec-title">Summary</div>
+      <textarea id="m-sum" rows="2" oninput="markDirty()" style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;font-size:14px;font-weight:500;font-family:'IBM Plex Sans',sans-serif;color:var(--text);resize:vertical;outline:none;line-height:1.4;">${(f.summary||'').replace(/</g,'&lt;')}</textarea>
+    </div>
+    <div class="msec">
+      <div class="msec-title">Description</div>
+      <textarea id="m-desc" rows="4" oninput="markDirty()" placeholder="輸入描述..." style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);resize:vertical;outline:none;line-height:1.6;">${desc.replace(/</g,'&lt;')}</textarea>
+    </div>
     <div class="msec">
       <div class="msec-title">詳細資訊</div>
       <div class="mmeta">
@@ -1032,7 +1038,12 @@ function renderModal(issue,transitions,meta){
           <label>Due Date</label>
           <input type="date" id="m-due" value="${f.duedate||''}" onchange="markDirty()">
         </div>
-        <div class="mfield"><label>Priority</label><div style="font-size:12px;color:${PCOL[f.priority?.name]||'var(--muted)'}">${f.priority?.name||'—'}</div></div>
+        <div class="mfield">
+          <label>Priority</label>
+          <select id="m-prio" onchange="markDirty()">
+            ${(meta?.priorities||[]).map(p=>`<option value="${p.name}" ${f.priority?.name===p.name?'selected':''}>${p.name}</option>`).join('')}
+          </select>
+        </div>
         <div class="mfield"><label>Reporter</label><div style="font-size:12px">${f.reporter?.displayName||'—'}</div></div>
         <div class="mfield"><label>Created</label><div style="font-size:11px;font-family:'IBM Plex Mono',monospace">${f.created?.slice(0,10)||'—'}</div></div>
       </div>
@@ -1072,21 +1083,66 @@ async function saveModal(key){
   const btn=document.getElementById('m-save');
   btn.disabled=true;btn.textContent='儲存中...';
   try{
-    const assignee=document.getElementById('m-asgn').value;
-    const duedate=document.getElementById('m-due').value;
-    const r=await fetch(`${SERVER}/issue/${key}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignee:assignee||null,duedate:duedate||null})});
+    const summary  = document.getElementById('m-sum')?.value.trim();
+    const desc     = document.getElementById('m-desc')?.value.trim();
+    const assignee = document.getElementById('m-asgn')?.value;
+    const duedate  = document.getElementById('m-due')?.value;
+    const priority = document.getElementById('m-prio')?.value;
+    if(!summary){btn.disabled=false;btn.textContent='💾 儲存變更';alert('Summary 不能為空');return;}
+    const r=await fetch(`${SERVER}/issue/${key}`,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({summary,description:desc||null,assignee:assignee||null,duedate:duedate||null,priority:priority||null})
+    });
     const d=await r.json();
     if(d.ok){
       btn.textContent='✅ 已儲存';
+      // Update local data
       const item=vAll.find(i=>i.key===key);
       if(item){
+        item.summary=summary;
         item.duedate=duedate||'—';
+        item.priority=priority||item.priority;
       }
-      addHistory('修改 ticket',`Assignee/DueDate`,key);
+      addHistory('修改 ticket',`Summary/Assignee/DueDate`,key);
       vApply();
       setTimeout(()=>{btn.textContent='💾 儲存變更';btn.disabled=false;btn.classList.add('hidden');},2000);
     }else throw new Error('儲存失敗');
   }catch(e){btn.textContent='❌ 失敗';btn.disabled=false;setTimeout(()=>{btn.textContent='💾 儲存變更';},2000);}
+}
+
+// Inline edit summary (double-click on summary cell)
+function inlineEditSum(key, td){
+  const orig = vAll.find(i=>i.key===key)?.summary || td.textContent.trim();
+  td.innerHTML=`<div style="display:flex;gap:4px;align-items:center;">
+    <input id="inline-sum-${key}" value="${orig.replace(/"/g,'&quot;').replace(/</g,'&lt;')}"
+      style="flex:1;border:1px solid var(--acc);border-radius:4px;padding:3px 6px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;outline:none;"
+      onclick="event.stopPropagation()"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();saveInlineSum('${key}',this.value);}if(event.key==='Escape'){event.stopPropagation();vApply();}">
+    <button onclick="event.stopPropagation();saveInlineSum('${key}',document.getElementById('inline-sum-${key}').value)"
+      style="padding:3px 8px;background:var(--acc);border:none;border-radius:4px;color:white;font-size:11px;cursor:pointer;white-space:nowrap;">✓</button>
+    <button onclick="event.stopPropagation();vApply()"
+      style="padding:3px 7px;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--muted);font-size:11px;cursor:pointer;">✕</button>
+  </div>`;
+  document.getElementById(`inline-sum-${key}`)?.focus();
+  document.getElementById(`inline-sum-${key}`)?.select();
+}
+
+async function saveInlineSum(key, newSummary){
+  const summary = newSummary.trim();
+  if(!summary){alert('Summary 不能為空');return;}
+  try{
+    const r=await fetch(`${SERVER}/issue/${key}`,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({summary})
+    });
+    const d=await r.json();
+    if(d.ok){
+      const item=vAll.find(i=>i.key===key);
+      if(item) item.summary=summary;
+      addHistory('修改 Summary',summary.slice(0,40)+(summary.length>40?'...':''),key);
+      vApply();
+    }else{alert('儲存失敗');vApply();}
+  }catch(e){alert('儲存失敗：'+e.message);vApply();}
 }
 
 async function doTransition(key,transId,transName,el){
