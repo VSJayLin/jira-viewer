@@ -1260,15 +1260,25 @@ async function doTransition(key,transId,transName,el){
   el.style.opacity='.5';
   try{
     const r=await fetch(`${SERVER}/issue/${key}/transition`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transitionId:transId})});
-    const d=await r.json();
-    if(d.ok){
-      document.querySelectorAll('.mstatus-opt').forEach(s=>s.classList.remove('cur'));
-      el.classList.add('cur');
-      const item=vAll.find(i=>i.key===key);
-      if(item){item.status=transName;vApply();}
-      addHistory('修改狀態',transName,key);
+    // 204 = success (no body), 200 = success with body
+    if(r.status===204||r.status===200){
+      let d={ok:true};
+      if(r.status===200){try{d=await r.json();}catch(e){}}
+      if(d.ok||r.status===204){
+        document.querySelectorAll('.mstatus-opt').forEach(s=>s.classList.remove('cur'));
+        el.classList.add('cur');
+        const item=vAll.find(i=>i.key===key);
+        if(item){item.status=transName;vApply();}
+        addHistory('修改狀態',transName,key);
+        // Update the badge in modal
+        const badge=document.querySelector('.modal-body .badge');
+        if(badge){badge.className=`badge ${bCls(item?.statusCat||'')}`;badge.textContent=transName;}
+      }else{alert('狀態更新失敗：'+JSON.stringify(d));}
+    }else{
+      const errText=await r.text().catch(()=>'');
+      alert(`狀態更新失敗 (HTTP ${r.status})：${errText.slice(0,200)}`);
     }
-  }catch(e){}
+  }catch(e){alert('狀態更新失敗：'+e.message);}
   el.style.opacity='1';
 }
 
