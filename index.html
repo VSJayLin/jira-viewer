@@ -275,62 +275,6 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
   .v-wrap{padding:8px 6px 60px;}.c-wrap{padding:0 6px 60px;}
   .mmeta{grid-template-columns:1fr;}
 }
-/* Saved filters (item 8) */
-.saved-filters{display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
-.sf-lbl{font-size:10px;color:var(--muted);}
-.sf-chip{padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf2);color:var(--dim);font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;}
-.sf-chip:hover{border-color:var(--acc);color:var(--acc);}
-.sf-chip .sf-del{opacity:.5;font-size:11px;margin-left:2px;}
-.sf-chip .sf-del:hover{opacity:1;color:var(--danger);}
-/* Expand row preview (item 9) */
-.expand-btn{font-size:10px;color:var(--muted);cursor:pointer;padding:0 4px;user-select:none;}
-.expand-btn:hover{color:var(--acc);}
-.expand-row td{background:#f8f9ff;font-size:11px;color:var(--dim);padding:6px 12px 8px 52px;line-height:1.6;}
-/* Inline edit cells (items 4,5,6) */
-.td-inline{position:relative;}
-.td-inline:hover .inline-edit-ic{opacity:.7;}
-.inline-edit-ic{opacity:0;font-size:10px;cursor:pointer;margin-left:4px;transition:opacity .15s;}
-.inline-edit-ic:hover{opacity:1!important;}
-.inline-inp{border:1px solid var(--acc);border-radius:4px;padding:2px 6px;font-size:11px;font-family:'IBM Plex Sans',sans-serif;outline:none;background:white;min-width:80px;}
-/* Multi sort indicator */
-.sort-badge{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:var(--acc);color:white;border-radius:50%;font-size:8px;font-weight:700;margin-left:2px;}
-/* Notif read */
-.notif-item.read{opacity:.5;}
-.notif-item-link{cursor:pointer;text-decoration:none;color:inherit;display:block;}
-.notif-item-link:hover .notif-key{text-decoration:underline;}
-.notif-hdr-actions{display:flex;gap:8px;align-items:center;margin-left:auto;}
-.notif-read-all{font-size:10px;color:var(--acc);cursor:pointer;border:none;background:none;padding:0;}
-.notif-read-all:hover{text-decoration:underline;}
-/* Labels col */
-.td-labels{font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.lbl-tag{display:inline-block;padding:1px 5px;background:#f4f5f7;border:1px solid var(--bdr);border-radius:3px;font-size:9px;color:var(--dim);margin:1px;}
-/* URL filter state indicator */
-.url-share-btn{font-size:10px;color:var(--muted);cursor:pointer;border:none;background:none;padding:2px 6px;border-radius:4px;}
-.url-share-btn:hover{background:var(--surf2);color:var(--acc);}
-/* Overdue stat card */
-.stat-od{background:var(--surf);border:1px solid #ffbdad;border-radius:8px;padding:9px 12px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;transition:border-color .15s;}
-.stat-od:hover,.stat-od.af{border-color:var(--danger);background:#fff5f3;}
-.stat-od .stat-n{color:var(--danger);}
-/* Draft manager (item 14) */
-.draft-list{max-height:200px;overflow-y:auto;margin-top:8px;}
-.draft-entry{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--bdr);font-size:11px;}
-.draft-entry:last-child{border-bottom:none;}
-.draft-entry:hover{background:var(--surf2);}
-.draft-name{flex:1;color:var(--dim);font-family:'IBM Plex Mono',monospace;}
-.draft-time{font-size:10px;color:var(--muted);}
-/* Sprint selector */
-.sprint-sel{background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;min-width:180px;transition:border-color .15s;}
-.sprint-sel:focus{border-color:var(--acc);}
-/* Clone modal */
-.clone-modal{position:fixed;inset:0;background:rgba(9,30,66,.5);z-index:300;display:flex;align-items:center;justify-content:center;}
-.clone-modal.hidden{display:none!important;}
-.clone-box{background:var(--surf);border-radius:10px;padding:24px;width:min(480px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.18);}
-.clone-title{font-size:14px;font-weight:500;margin-bottom:14px;}
-.clone-inp{width:100%;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;font-size:13px;color:var(--text);outline:none;margin-bottom:10px;}
-.clone-inp:focus{border-color:var(--acc);}
-.clone-actions{display:flex;gap:8px;justify-content:flex-end;}
-/* Retry indicator */
-.retry-badge{display:inline-block;padding:1px 6px;background:#fffae6;border:1px solid #ffe380;border-radius:4px;font-size:10px;color:var(--warn);margin-left:6px;}
 .hidden{display:none!important;}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
@@ -369,10 +313,8 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
 
 <!-- Notification panel -->
 <div class="notif-panel" id="notifPanel">
-  <div class="notif-header">🔔 即將到期 / 已過期
-    <div class="notif-hdr-actions">
-      <button class="notif-read-all" onclick="markAllNotifRead()">全部已讀</button>
-    </div>
+  <div class="notif-header" style="display:flex;align-items:center">🔔 即將到期 / 已過期
+    <button onclick="markAllNotifRead()" style="margin-left:auto;font-size:10px;color:var(--acc);border:none;background:none;cursor:pointer;padding:0">全部已讀</button>
   </div>
   <div id="notifList"></div>
 </div>
@@ -395,8 +337,8 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
     <div class="stat" id="stat-done" onclick="vStatF('done')">
       <div class="stat-n" id="s-done" style="color:#006644">—</div><div class="stat-l">Done</div>
     </div>
-    <div class="stat stat-od" id="stat-od" onclick="vStatF('overdue')">
-      <div class="stat-n" id="s-od">—</div><div class="stat-l">⚠ 過期</div>
+    <div class="stat" id="stat-od" onclick="vStatF('overdue')" style="border-color:#ffbdad">
+      <div class="stat-n" id="s-od" style="color:var(--danger)">—</div><div class="stat-l" style="color:var(--danger)">⚠ 過期</div>
     </div>
   </div>
 
@@ -406,19 +348,19 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
     <div id="histList"></div>
   </div>
 
-  <!-- Saved filters (item 8) + URL share (item 11) -->
-  <div class="saved-filters" id="savedFiltersBar">
-    <span class="sf-lbl">常用篩選：</span>
+  <!-- Saved filters -->
+  <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap;font-size:10px;">
+    <span style="color:var(--muted)">常用篩選：</span>
     <div id="savedFiltersList"></div>
-    <button class="url-share-btn" onclick="saveCurrentFilter()" title="儲存目前篩選">＋ 儲存篩選</button>
-    <button class="url-share-btn" onclick="shareUrl()" title="複製篩選連結">🔗 分享連結</button>
+    <button onclick="saveCurrentFilter()" style="padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf2);color:var(--dim);font-size:10px;cursor:pointer">＋ 儲存篩選</button>
+    <button onclick="shareUrl()" style="padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf2);color:var(--dim);font-size:10px;cursor:pointer">🔗 分享連結</button>
   </div>
 
   <!-- Filters -->
   <div class="fbar">
     <div class="fbar-title">篩選</div>
     <div class="frow">
-      <div class="fg wide"><div class="fg-lbl">關鍵字</div><input class="fg-inp" id="f-kw" placeholder="Key、標題..." oninput="vApplyDebounced()"></div>
+      <div class="fg wide"><div class="fg-lbl">關鍵字</div><input class="fg-inp" id="f-kw" placeholder="Key、標題..." oninput="vApply()"></div>
       <div class="fg"><div class="fg-lbl">專案</div><select class="fg-sel" id="f-proj" onchange="vOnProj()"><option value="">— 請選擇 —</option></select></div>
       <div class="fg"><div class="fg-lbl">看板</div><select class="fg-sel" id="f-board" onchange="vOnBoard()"><option value="">全部</option></select></div>
       <div class="fg"><div class="fg-lbl">Epic</div><select class="fg-sel" id="f-epic" onchange="vOnEpic()"><option value="">全部</option></select></div>
@@ -438,7 +380,7 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
     <div class="chips" id="chips"></div>
   </div>
 
-  <!-- Column toggles -->
+  <!-- Column toggles (item 10 from previous) -->
   <div class="col-bar">
     <span class="col-lbl">顯示欄位：</span>
     <button class="col-btn on" data-col="type" onclick="toggleCol(this)">Type</button>
@@ -474,7 +416,7 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
     <table class="vt" id="vTable">
       <thead><tr>
         <th class="td-cb"><input type="checkbox" id="selAll" onchange="toggleSelAll(this)" title="全選"></th>
-        <th style="width:20px"></th>
+        <th style="width:20px;padding:7px 2px"></th>
         <th data-col="type" id="th-type" onclick="vSort('type')">Type <i class="sa">↕</i></th>
         <th id="th-key" onclick="vSort('key')">Key <i class="sa">↕</i></th>
         <th>Summary</th>
@@ -514,7 +456,7 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
         <div class="sel-grp"><div class="c-lbl">空間 <span style="color:var(--danger)">*</span></div><select class="fsel" id="c-proj" onchange="cOnProj()"><option value="">請選擇...</option></select></div>
         <div class="sel-grp"><div class="c-lbl">看板 <span style="color:var(--muted)">選填</span></div><select class="fsel" id="c-board" disabled><option value="">請先選空間</option></select></div>
         <div class="sel-grp"><div class="c-lbl">Epic <span style="color:var(--muted)">選填</span></div><select class="fsel" id="c-epic" disabled><option value="">請先選空間</option></select></div>
-        <div class="sel-grp"><div class="c-lbl">Sprint <span style="color:var(--muted)">選填</span></div><select class="sprint-sel" id="c-sprint" disabled><option value="">請先選看板</option></select></div>
+        <div class="sel-grp"><div class="c-lbl">Sprint <span style="color:var(--muted)">選填</span></div><select class="fsel" id="c-sprint" disabled><option value="">請先選看板</option></select></div>
         <button class="conf-btn" id="c-confBtn" onclick="cConfirm()" disabled>確認 →</button>
       </div>
     </div>
@@ -542,14 +484,14 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
         <span id="xlPreviewCount" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
       </div>
     </div>
-    <!-- Draft manager (item 14) -->
+    <!-- Draft -->
     <div class="draft-bar">
       <button class="draft-btn" onclick="cSaveDraft()">💾 儲存草稿</button>
       <button class="draft-btn" onclick="toggleDraftManager()">📂 草稿管理</button>
     </div>
     <div id="draftManager" class="hidden" style="margin-bottom:10px;background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:10px;">
       <div style="font-size:11px;font-weight:500;color:var(--dim);margin-bottom:6px;">已儲存的草稿</div>
-      <div class="draft-list" id="draftList"></div>
+      <div id="draftList"></div>
     </div>
     <div class="c-tbl-wrap">
       <table class="ct">
@@ -598,25 +540,25 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
     <div class="modal-hdr">
       <span class="modal-key" id="mKey"></span>
       <a id="mJiraLink" href="#" target="_blank" style="font-size:10px;color:var(--acc);text-decoration:none;margin-left:4px;">↗ Jira</a>
-      <button onclick="modalNav(-1)" id="mPrev" title="上一張" style="margin-left:8px;padding:3px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);">◀</button>
-      <button onclick="modalNav(1)" id="mNext" title="下一張" style="padding:3px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);">▶</button>
-      <span id="mNavInfo" style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;"></span>
-      <button id="mCloneBtn" onclick="showCloneModal(document.getElementById('mKey').textContent)" style="margin-left:6px;padding:3px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);" title="複製此 Ticket">📋 複製</button>
+      <button onclick="modalNav(-1)" id="mPrev" style="margin-left:8px;padding:3px 7px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);">◀</button>
+      <button onclick="modalNav(1)" id="mNext" style="padding:3px 7px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);">▶</button>
+      <span id="mNavInfo" style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-left:4px;"></span>
+      <button onclick="showCloneModal(curModalKey)" style="margin-left:6px;padding:3px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);" title="複製此 Ticket">📋 複製</button>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="mBody"><div class="mloading"><div class="v-spin"></div>載入中...</div></div>
   </div>
 </div>
 
-<!-- Clone modal (item 16) -->
-<div class="clone-modal hidden" id="cloneModal">
-  <div class="clone-box">
-    <div class="clone-title">📋 複製 Ticket</div>
+<!-- Clone modal -->
+<div id="cloneModal" style="display:none;position:fixed;inset:0;background:rgba(9,30,66,.5);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--surf);border-radius:10px;padding:24px;width:min(480px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">📋 複製 Ticket</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px">從 <span id="cloneSrcKey" style="color:var(--acc);font-family:'IBM Plex Mono',monospace"></span> 建立副本</div>
-    <input class="clone-inp" id="cloneSummary" placeholder="新 Summary（留空則自動加 [Copy] 前綴）">
-    <div class="clone-actions">
-      <button class="sec-btn" onclick="document.getElementById('cloneModal').classList.add('hidden')">取消</button>
-      <button class="conf-btn" onclick="doClone()">建立副本</button>
+    <input id="cloneSummary" placeholder="新 Summary（留空則自動加 [Copy] 前綴）" style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;font-size:13px;outline:none;margin-bottom:10px">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('cloneModal').style.display='none'" style="padding:7px 14px;border:1px solid var(--bdr);border-radius:6px;background:transparent;font-size:12px;cursor:pointer">取消</button>
+      <button onclick="doClone()" style="padding:7px 16px;background:var(--acc);border:none;border-radius:6px;color:white;font-size:12px;cursor:pointer">建立副本</button>
     </div>
   </div>
 </div>
@@ -628,24 +570,6 @@ const JIRA_DOMAIN='viewsonic-vsi.atlassian.net';
 const TIPO={'Story':'📋','Bug':'🐛','Task':'✅','Sub-task':'↳','Epic':'⚡','大型工作':'⚡','任務':'✅','子任務':'↳','漏洞':'🐛','改善':'📋','Feature':'⭐'};
 const PCOL={'Highest':'#bf2600','High':'#de350b','Medium':'#0052cc','Low':'#00875a','Lowest':'#6b778c'};
 let cacheTtlMs=5*60*1000;
-
-// ── All state variables declared upfront to avoid TDZ errors ──
-let vAll=[],vSortK='key',vSortA=true,vProj='',vBoard='',vEpic='',vStatCat='',vJql='';
-let selectedKeys=new Set();
-let lastCached=false;
-let sortKeys=[{k:'key',a:true}];
-let modalList=[],modalIdx=0;
-let expandedKeys=new Set();
-let cloneSrcKey='';
-let createdKeys=[];
-let history=JSON.parse(localStorage.getItem('jira_history')||'[]');
-let notifRead=new Set(JSON.parse(localStorage.getItem('notif_read')||'[]'));
-let savedFilters=JSON.parse(localStorage.getItem('jira_saved_filters')||'[]');
-let drafts=JSON.parse(localStorage.getItem('jira_drafts_v2')||'[]');
-let cMeta={issueTypes:[],priorities:[],assignees:[]},cSP='',cSB='',cSE='',cRowId=0;
-let vMeta={assignees:[],transitions:[]};
-let pendingImport=[];
-const visCols=new Set(['type','status','priority','assignee','reporter','labels','duedate','updated']);
 
 // ── Tab ──
 function switchTab(t){
@@ -665,6 +589,19 @@ function updateCacheTtl(){
 }
 
 // ══ VIEWER ══
+let vAll=[],vSortK='key',vSortA=true,vProj='',vBoard='',vEpic='',vStatCat='',vJql='';
+let selectedKeys=new Set();
+let lastCached=false;
+const visCols=new Set(['type','status','priority','assignee','reporter','labels','duedate','updated']);
+// ── New state variables ──
+let sortKeys=[{k:'key',a:true}];
+let modalList=[],modalIdx=0;
+let expandedKeys=new Set();
+let cloneSrcKey='';
+let notifRead=new Set(JSON.parse(localStorage.getItem('notif_read')||'[]'));
+let savedFilters=JSON.parse(localStorage.getItem('jira_saved_filters')||'[]');
+let drafts=JSON.parse(localStorage.getItem('jira_drafts_v2')||'[]');
+let _debounceT=null;
 
 function toggleCol(btn){
   const col=btn.dataset.col;
@@ -815,16 +752,6 @@ async function vFetch(){
   btn.disabled=false;btn.classList.remove('loading');
 }
 
-function vStatF(cat){
-  vStatCat=vStatCat===cat?'':cat;
-  document.querySelectorAll('.stat,.stat-od').forEach(s=>s.classList.remove('af'));
-  if(vStatCat){
-    const map={todo:'stat-todo',indeterminate:'stat-prog',done:'stat-done',overdue:'stat-od'};
-    document.getElementById(map[vStatCat]||'stat-all')?.classList.add('af');
-  }
-  vApply();
-}
-
 const today=new Date().toISOString().slice(0,10);
 const soon=new Date(Date.now()+7*24*60*60*1000).toISOString().slice(0,10);
 
@@ -835,11 +762,9 @@ function vUpdateStats(){
   document.getElementById('s-todo').textContent=t-p-d;
   document.getElementById('s-prog').textContent=p;
   document.getElementById('s-done').textContent=d;
-  document.getElementById('s-od').textContent=od;
+  const odEl=document.getElementById('s-od');if(odEl) odEl.textContent=od;
 }
 
-// Debounce for keyword search (item 3)
-let _debounceT=null;
 function vApplyDebounced(){clearTimeout(_debounceT);_debounceT=setTimeout(vApply,300);}
 
 function vApply(){
@@ -866,41 +791,18 @@ function vApply(){
   const types=[...new Set(vAll.map(i=>i.type).filter(Boolean))].sort();
   tSel.innerHTML='<option value="">全部</option>'+types.map(t=>`<option value="${t}" ${t===curT?'selected':''}>${TIPO[t]||'📄'} ${t}</option>`).join('');
   // Multi-sort
-  filtered.sort((a,b)=>{
-    for(const {k,a:asc} of sortKeys){
-      const r=vSortCmp(a,b,k,asc);
-      if(r!==0) return r;
-    }
-    return 0;
-  });
+  filtered.sort((a,b)=>{for(const {k,a:asc} of sortKeys){const r=vSortCmp(a,b,k,asc);if(r!==0)return r;}return 0;});
   vRenderTable(filtered);
   vRenderChips(kw,stat,asgn,type,date,due);
   document.getElementById('footerText').textContent=filtered.length+' / '+vAll.length+' 筆 tickets';
-  syncUrlState();
   renderSavedFilters();
+  syncUrlState();
 }
 
 function vSortCmp(a,b,key,asc){
   if(key==='key'){const na=parseInt(a.key.replace(/^[^-]+-/,''))||0,nb=parseInt(b.key.replace(/^[^-]+-/,''))||0;return asc?na-nb:nb-na;}
   const va=a[key]||'',vb=b[key]||'';
   return asc?va.localeCompare(vb):vb.localeCompare(va);
-}
-
-function vSort(key){
-  const existing=sortKeys.findIndex(s=>s.k===key);
-  if(existing===0){ sortKeys[0].a=!sortKeys[0].a; }
-  else if(existing>0){ sortKeys.splice(existing,1); sortKeys.unshift({k:key,a:true}); }
-  else { sortKeys.unshift({k:key,a:true}); if(sortKeys.length>3) sortKeys.pop(); }
-  // Update th indicators
-  document.querySelectorAll('table.vt th').forEach(th=>{ th.classList.remove('sorted'); const sa=th.querySelector('.sa'); if(sa) sa.textContent='↕'; const sb=th.querySelector('.sort-badge'); if(sb) sb.remove(); });
-  sortKeys.forEach((s,idx)=>{
-    const th=document.getElementById('th-'+s.k);
-    if(!th) return;
-    th.classList.add('sorted');
-    const sa=th.querySelector('.sa'); if(sa) sa.textContent=s.a?'↑':'↓';
-    if(sortKeys.length>1) th.insertAdjacentHTML('beforeend',`<span class="sort-badge">${idx+1}</span>`);
-  });
-  vApply();
 }
 
 function bCls(cat){return cat==='indeterminate'?'b-prog':cat==='done'?'b-done':'b-todo';}
@@ -913,30 +815,30 @@ function vRenderTable(data){
     const od=i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done';
     const isSel=selectedKeys.has(i.key);
     const pc=PCOL[i.priority]||'var(--muted)';
-    const lblHtml=(i.labels||[]).slice(0,2).map(l=>`<span class="lbl-tag">${l}</span>`).join('')+(i.labels?.length>2?`<span class="lbl-tag">+${i.labels.length-2}</span>`:'');
+    const lblHtml=(i.labels||[]).slice(0,2).map(l=>`<span style="display:inline-block;padding:1px 5px;background:#f4f5f7;border:1px solid var(--bdr);border-radius:3px;font-size:9px;color:var(--dim);margin:1px">${l}</span>`).join('')+(i.labels?.length>2?`<span style="font-size:9px;color:var(--muted)">+${i.labels.length-2}</span>`:'');
     return `<tr id="tr-${i.key}" onclick="openModal('${i.key}')" class="${isSel?'sel-row':''}">
       <td class="td-cb" onclick="event.stopPropagation()"><input type="checkbox" ${isSel?'checked':''} onchange="toggleSel('${i.key}',this)"></td>
-      <td style="padding:6px 2px;width:20px"><span class="expand-btn" onclick="event.stopPropagation();toggleExpand('${i.key}')" title="展開預覽">▶</span></td>
+      <td style="padding:6px 2px;width:20px"><span style="font-size:10px;color:var(--muted);cursor:pointer;user-select:none" onclick="event.stopPropagation();toggleExpand('${i.key}')" id="eb-${i.key}">▶</span></td>
       <td data-col="type" style="font-size:10px;color:var(--dim);white-space:nowrap;${visCols.has('type')?'':'display:none'}">${TIPO[i.type]||'📄'} ${i.type}</td>
       <td class="td-key" onclick="event.stopPropagation()"><a href="${i.url}" target="_blank">${i.key}</a></td>
       <td class="td-sum" title="${i.summary.replace(/"/g,'&quot;')}">
         <span class="sum-text">${i.summary.replace(/</g,'&lt;')}</span>
         <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditSum('${i.key}',this.closest('td'))" title="編輯">✏️</span>
       </td>
-      <td data-col="status" style="${visCols.has('status')?'':'display:none'}" class="td-inline">
+      <td data-col="status" style="${visCols.has('status')?'':'display:none'}">
         <span class="badge ${bCls(i.statusCat)}">${i.status}</span>
-        <span class="inline-edit-ic" onclick="event.stopPropagation();inlineEditStatus('${i.key}',this)" title="改狀態">✏️</span>
+        <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditStatus('${i.key}',this)" title="改狀態">✏️</span>
       </td>
       <td data-col="priority" style="font-size:10px;color:${pc};white-space:nowrap;${visCols.has('priority')?'':'display:none'}">${i.priority||'—'}</td>
-      <td data-col="assignee" class="td-per td-inline" title="${i.assignee}" style="${visCols.has('assignee')?'':'display:none'}">
+      <td data-col="assignee" class="td-per" title="${i.assignee}" style="${visCols.has('assignee')?'':'display:none'}">
         ${i.assignee||'未指派'}
-        <span class="inline-edit-ic" onclick="event.stopPropagation();inlineEditAssignee('${i.key}',this)" title="改負責人">✏️</span>
+        <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditAssignee('${i.key}',this)" title="改負責人">✏️</span>
       </td>
       <td data-col="reporter" class="td-per" title="${i.reporter}" style="${visCols.has('reporter')?'':'display:none'}">${i.reporter||'—'}</td>
-      <td data-col="labels" class="td-labels" style="${visCols.has('labels')?'':'display:none'}" title="${(i.labels||[]).join(', ')}">${lblHtml||'—'}</td>
-      <td data-col="duedate" class="td-dt${od?' od':''} td-inline" style="${visCols.has('duedate')?'':'display:none'}">
+      <td data-col="labels" style="font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${visCols.has('labels')?'':'display:none'}" title="${(i.labels||[]).join(', ')}">${lblHtml||'—'}</td>
+      <td data-col="duedate" class="td-dt${od?' od':''}" style="${visCols.has('duedate')?'':'display:none'}">
         ${fmtD(i.duedate)}${od?' ⚠':''}
-        <span class="inline-edit-ic" onclick="event.stopPropagation();inlineEditDue('${i.key}',this)" title="改截止日">✏️</span>
+        <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditDue('${i.key}',this)" title="改截止日">✏️</span>
       </td>
       <td data-col="updated" class="td-dt" style="${visCols.has('updated')?'':'display:none'}">${fmtD(i.updated)}</td>
     </tr>`;
@@ -956,13 +858,39 @@ function vRenderChips(kw,stat,asgn,type,date,due){
   if(vJql) add('JQL','vJql="";document.getElementById("f-jql").value="";vFetch()');
 }
 
+function vSort(key){
+  const existing=sortKeys.findIndex(s=>s.k===key);
+  if(existing===0){sortKeys[0].a=!sortKeys[0].a;}
+  else if(existing>0){sortKeys.splice(existing,1);sortKeys.unshift({k:key,a:true});}
+  else{sortKeys.unshift({k:key,a:true});if(sortKeys.length>3)sortKeys.pop();}
+  document.querySelectorAll('table.vt th').forEach(th=>{th.classList.remove('sorted');const sa=th.querySelector('.sa');if(sa)sa.textContent='↕';const sb=th.querySelector('.sort-badge');if(sb)sb.remove();});
+  sortKeys.forEach((s,idx)=>{
+    const th=document.getElementById('th-'+s.k);if(!th)return;
+    th.classList.add('sorted');
+    const sa=th.querySelector('.sa');if(sa)sa.textContent=s.a?'↑':'↓';
+    if(sortKeys.length>1)th.insertAdjacentHTML('beforeend',`<span class="sort-badge" style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:var(--acc);color:white;border-radius:50%;font-size:8px;font-weight:700;margin-left:2px">${idx+1}</span>`);
+  });
+  vApply();
+}
+
+function vStatF(cat){
+  vStatCat=vStatCat===cat?'':cat;
+  document.querySelectorAll('.stat').forEach(s=>s.classList.remove('af'));
+  const odEl=document.getElementById('stat-od');if(odEl)odEl.classList.remove('af');
+  if(vStatCat){
+    const map={todo:'stat-todo',indeterminate:'stat-prog',done:'stat-done',overdue:'stat-od'};
+    document.getElementById(map[vStatCat]||'stat-all')?.classList.add('af');
+  }
+  vApply();
+}
+
 function vReset(){
   ['f-kw','f-stat','f-asgn','f-type','f-date','f-due','f-jql'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-board').value='';document.getElementById('f-epic').value='';
-  vBoard='';vEpic='';vStatCat='';vJql='';
-  sortKeys=[{k:'key',a:true}];
+  vBoard='';vEpic='';vStatCat='';vJql='';sortKeys=[{k:'key',a:true}];
   selectedKeys.clear();
-  document.querySelectorAll('.stat,.stat-od').forEach(s=>s.classList.remove('af'));
+  document.querySelectorAll('.stat').forEach(s=>s.classList.remove('af'));
+  const odEl=document.getElementById('stat-od');if(odEl)odEl.classList.remove('af');
   vFetch();
 }
 
@@ -1004,6 +932,7 @@ function vExport(){
 }
 
 // ── Batch select (item 12) ──
+let vMeta={assignees:[],transitions:[]};
 
 function toggleSel(key,cb){
   if(cb.checked) selectedKeys.add(key); else selectedKeys.delete(key);
@@ -1088,6 +1017,35 @@ async function applyBatch(){
 }
 
 // ── Notification (item 20) ──
+function vCheckNotif(){
+  const dueSoon=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate>=today&&i.duedate<=soon&&i.statusCat!=='done');
+  const overdue=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done');
+  const all=[...overdue,...dueSoon];
+  const unread=all.filter(i=>!notifRead.has(i.key));
+  const badge=document.getElementById('notifBadge');
+  badge.textContent=unread.length||'';
+  badge.classList.toggle('show',unread.length>0);
+  const list=document.getElementById('notifList');
+  if(!all.length){list.innerHTML='<div style="padding:12px 14px;font-size:12px;color:var(--muted)">沒有即將到期的 tickets 🎉</div>';return;}
+  list.innerHTML=all.map(i=>`<div class="notif-item" style="${notifRead.has(i.key)?'opacity:.5':''}">
+    <div style="cursor:pointer" onclick="markNotifRead('${i.key}');document.getElementById('notifPanel').classList.remove('show');openModal('${i.key}')">
+      <div><span class="notif-key">${i.key}</span><span style="font-size:11px;color:var(--dim)">${i.summary.slice(0,50)}${i.summary.length>50?'...':''}</span></div>
+      <div class="notif-due">${i.duedate<today?'⚠ 已過期 '+i.duedate:'🔔 到期 '+i.duedate}</div>
+    </div>
+    ${!notifRead.has(i.key)?`<button onclick="event.stopPropagation();markNotifRead('${i.key}')" style="padding:2px 6px;border:1px solid var(--bdr);border-radius:3px;font-size:10px;background:transparent;cursor:pointer;color:var(--muted);margin-top:3px">已讀</button>`:''}
+  </div>`).join('');
+}
+function markNotifRead(key){
+  notifRead.add(key);
+  localStorage.setItem('notif_read',JSON.stringify([...notifRead]));
+  vCheckNotif();
+}
+function markAllNotifRead(){
+  vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.statusCat!=='done').forEach(i=>notifRead.add(i.key));
+  localStorage.setItem('notif_read',JSON.stringify([...notifRead]));
+  vCheckNotif();
+}
+
 function toggleNotif(){
   const panel=document.getElementById('notifPanel');
   panel.classList.toggle('show');
@@ -1096,7 +1054,8 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('#notifBtn')&&!e.target.closest('#notifPanel')) document.getElementById('notifPanel').classList.remove('show');
 });
 
-// ── History ──
+// ── History (item 23) ──
+let history=JSON.parse(localStorage.getItem('jira_history')||'[]');
 function addHistory(action,detail,key){
   history.unshift({action,detail,key,time:new Date().toLocaleString('zh-TW')});
   if(history.length>50) history=history.slice(0,50);
@@ -1115,6 +1074,37 @@ function toggleHist(){document.getElementById('histPanel').classList.toggle('sho
 function clearHistory(){history=[];localStorage.removeItem('jira_history');renderHistory();}
 
 // ── Modal ──
+let curModalKey='';
+function openModal(key){
+  modalList=[...document.getElementById('tbody').querySelectorAll('.td-key a')].map(a=>a.textContent.trim());
+  modalIdx=modalList.indexOf(key);
+  _openModal(key);
+}
+function modalNav(dir){
+  const ni=modalIdx+dir;
+  if(ni<0||ni>=modalList.length) return;
+  modalIdx=ni;_openModal(modalList[modalIdx]);
+}
+async function _openModal(key){
+  curModalKey=key;
+  document.getElementById('modalOv').classList.remove('hidden');
+  document.getElementById('mKey').textContent=key;
+  document.getElementById('mJiraLink').href=`https://${JIRA_DOMAIN}/browse/${key}`;
+  const prevBtn=document.getElementById('mPrev');const nextBtn=document.getElementById('mNext');
+  const navInfo=document.getElementById('mNavInfo');
+  if(prevBtn) prevBtn.disabled=modalIdx<=0;
+  if(nextBtn) nextBtn.disabled=modalIdx>=modalList.length-1;
+  if(navInfo) navInfo.textContent=modalList.length?`${modalIdx+1}/${modalList.length}`:'';
+  document.getElementById('mBody').innerHTML='<div class="mloading"><div class="v-spin"></div>載入中...</div>';
+  try{
+    const[issue,transitions,meta]=await Promise.all([
+      fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
+      fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
+      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
+    ]);
+    renderModal(issue,transitions,meta);
+  }catch(e){document.getElementById('mBody').innerHTML=`<div class="mloading">❌ 載入失敗：${e.message}</div>`;}
+}
 
 function extractText(doc){
   if(!doc) return '';
@@ -1332,6 +1322,9 @@ function closeModal(){document.getElementById('modalOv').classList.add('hidden')
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
 
 // ══ CREATOR ══
+let cMeta={issueTypes:[],priorities:[],assignees:[]},cSP='',cSB='',cSE='',cRowId=0;
+let createdKeys=[];
+let pendingImport=[];
 
 async function cLoadProjects(){
   try{
@@ -1345,13 +1338,40 @@ async function cLoadProjects(){
   }catch(e){document.getElementById('c-loading').innerHTML=`<span style="color:var(--danger)">❌ 載入失敗：${e.message}</span>`;}
 }
 
+async function cOnProj(){
+  const proj=document.getElementById('c-proj').value;
+  document.getElementById('c-confBtn').disabled=!proj;
+  if(!proj){cResetDrop('c-board','請先選空間');cResetDrop('c-epic','請先選空間');cResetDrop('c-sprint','請先選看板');return;}
+  cResetDrop('c-board','載入中...');cResetDrop('c-epic','載入中...');cResetDrop('c-sprint','請先選看板');
+  const[boards,epics]=await Promise.all([
+    fetch(`${SERVER}/boards?project=${proj}`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${SERVER}/epics?project=${proj}`).then(r=>r.json()).catch(()=>[])
+  ]);
+  const bSel=document.getElementById('c-board');bSel.disabled=false;bSel.innerHTML='<option value="">不指定看板</option>';
+  boards.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.name;bSel.appendChild(o);});
+  if(!boards.length){bSel.innerHTML='<option value="">此空間無看板</option>';bSel.disabled=true;}
+  // Load sprints when board changes
+  bSel.onchange=async()=>{
+    const boardId=bSel.value;
+    const sprintSel=document.getElementById('c-sprint');
+    if(!boardId){cResetDrop('c-sprint','請先選看板');return;}
+    sprintSel.disabled=false;sprintSel.innerHTML='<option value="">載入中...</option>';
+    const sprints=await fetch(`${SERVER}/sprints?boardId=${boardId}`).then(r=>r.json()).catch(()=>[]);
+    sprintSel.innerHTML='<option value="">不指定 Sprint</option>';
+    sprints.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.name} (${s.state})`;sprintSel.appendChild(o);});
+    if(!sprints.length){sprintSel.innerHTML='<option value="">無可用 Sprint</option>';}
+  };
+  const eSel=document.getElementById('c-epic');eSel.disabled=false;eSel.innerHTML='<option value="">不指定 Epic</option>';
+  epics.forEach(e=>{const o=document.createElement('option');o.value=e.key;o.textContent=`${e.key} · ${e.summary}`;eSel.appendChild(o);});
+  if(!epics.length){eSel.innerHTML='<option value="">此空間無 Epic</option>';eSel.disabled=true;}
+}
+
 function cResetDrop(id,text){const el=document.getElementById(id);el.innerHTML=`<option value="">${text}</option>`;el.disabled=true;}
 
 async function cConfirm(){
   cSP=document.getElementById('c-proj').value;
   cSB=document.getElementById('c-board').value;
   cSE=document.getElementById('c-epic').value;
-  const cSSprint=document.getElementById('c-sprint')?.value||'';
   if(!cSP) return;
   const rows=document.getElementById('c-body').querySelectorAll('tr').length;
   if(rows>0&&!document.getElementById('c-card2').classList.contains('hidden')){
@@ -1360,14 +1380,13 @@ async function cConfirm(){
   const btn=document.getElementById('c-confBtn');btn.disabled=true;btn.textContent='載入中...';
   try{
     const r=await fetch(`${SERVER}/meta?project=${cSP}`);cMeta=await r.json();
+    // Also load labels
     const lblData=await fetch(`${SERVER}/labels?project=${cSP}`).then(r=>r.json()).catch(()=>[]);
     cMeta.labels=lblData;
-    cMeta.sprintId=cSSprint;
     const pSel=document.getElementById('c-proj');
     const parts=[`空間：${pSel.options[pSel.selectedIndex]?.text}`];
     if(cSB){const s=document.getElementById('c-board');parts.push(`看板：${s.options[s.selectedIndex]?.text}`);}
     if(cSE){const s=document.getElementById('c-epic');parts.push(`Epic：${s.options[s.selectedIndex]?.text}`);}
-    if(cSSprint){const s=document.getElementById('c-sprint');parts.push(`Sprint：${s.options[s.selectedIndex]?.text}`);}
     document.getElementById('c-card2desc').innerHTML=`每一列代表一張 ticket，<span style="color:var(--danger)">*</span> 為必填。<br><span style="font-size:11px;color:var(--muted)">${parts.join('　·　')}</span>`;
     document.getElementById('c-body').innerHTML='';cRowId=0;
     for(let i=0;i<5;i++) cAddRow();
@@ -1432,8 +1451,7 @@ async function cSubmit(){
   if(!valid.length){alert('請至少填寫一筆有效的 ticket');return;}
   const btn=document.getElementById('c-subBtn');btn.disabled=true;btn.classList.add('loading');
   try{
-    const sprintId=cMeta.sprintId||'';
-    const r=await fetch(`${SERVER}/create-batch`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({issues:valid.map(r=>({project:cSP,summary:r.summary,description:r.description,issueType:r.issueTypeId,priority:r.priorityId,assignee:r.assigneeId,duedate:r.duedate,epic:cSE||'',parentKey:r.parentKey||'',labels:r.labels||[],sprintId}))})});
+    const r=await fetch(`${SERVER}/create-batch`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({issues:valid.map(r=>({project:cSP,summary:r.summary,description:r.description,issueType:r.issueTypeId,priority:r.priorityId,assignee:r.assigneeId,duedate:r.duedate,epic:cSE||'',parentKey:r.parentKey||'',labels:r.labels||[]}))})});
     const data=await r.json();
     createdKeys=(data.issues||[]).map(i=>i.key);
     cRenderResult(data,valid);
@@ -1478,7 +1496,48 @@ function cReset(){
   cSetStep(1);window.scrollTo({top:0,behavior:'smooth'});
 }
 
-// Draft
+// Draft - named management
+function cSaveDraft(){
+  const name=prompt('草稿名稱：',`草稿 ${new Date().toLocaleString('zh-TW')}`);
+  if(!name) return;
+  const rows=cGetRows();
+  const draft={name,project:cSP,board:cSB,epic:cSE,rows:rows.map(r=>({summary:r.summary,description:r.description,issueTypeId:r.issueTypeId,priorityId:r.priorityId,assigneeId:r.assigneeId,duedate:r.duedate,labels:r.labels?.join(',')||'',parentKey:r.parentKey})),ts:Date.now()};
+  drafts.unshift(draft);if(drafts.length>20)drafts.pop();
+  localStorage.setItem('jira_drafts_v2',JSON.stringify(drafts));
+  alert(`✅ 草稿「${name}」已儲存（${rows.length} 列）`);
+}
+function toggleDraftManager(){
+  const el=document.getElementById('draftManager');
+  el.classList.toggle('hidden');
+  if(!el.classList.contains('hidden')) renderDraftList();
+}
+function renderDraftList(){
+  const list=document.getElementById('draftList');
+  if(!drafts.length){list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px">尚無草稿</div>';return;}
+  list.innerHTML=drafts.map((d,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--bdr);font-size:11px">
+    <span style="flex:1;color:var(--dim);font-family:'IBM Plex Mono',monospace">${d.name}</span>
+    <span style="font-size:10px;color:var(--muted)">${new Date(d.ts).toLocaleDateString('zh-TW')}</span>
+    <button style="padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;font-size:10px;cursor:pointer;background:transparent" onclick="loadDraft(${i})">載入</button>
+    <button style="padding:2px 6px;border:1px solid var(--bdr);border-radius:4px;font-size:10px;cursor:pointer;background:transparent;color:var(--danger)" onclick="deleteDraft(${i})">✕</button>
+  </div>`).join('');
+}
+function loadDraft(idx){
+  const d=drafts[idx];
+  if(!confirm(`載入草稿「${d.name}」？（${d.rows?.length||0} 列）`)) return;
+  document.getElementById('c-body').innerHTML='';cRowId=0;
+  (d.rows||[]).forEach(r=>cAddRow(r.summary,r.description,r.duedate,r.issueTypeId,r.assigneeId,r.priorityId,r.labels||'',r.parentKey||''));
+  cUpdateCnt();cUpdateSum();
+  document.getElementById('draftManager').classList.add('hidden');
+  alert('✅ 草稿載入完成');
+}
+function deleteDraft(idx){
+  if(!confirm(`刪除草稿「${drafts[idx].name}」？`)) return;
+  drafts.splice(idx,1);
+  localStorage.setItem('jira_drafts_v2',JSON.stringify(drafts));
+  renderDraftList();
+}
+function cLoadDraft(){toggleDraftManager();}
+
 // Excel import with preview (item 16)
 function cImportExcel(input){
   const file=input.files[0];if(!file) return;
@@ -1567,54 +1626,20 @@ function cancelImport(){
   pendingImport=[];
 }
 
-// ── Init ──
-switchTab('viewer');
-vLoadProjects();
-cLoadProjects();
-renderHistory();
-loadSavedFilters();
-restoreUrlState();
-
-// Keepalive
-setInterval(async()=>{try{await fetch(`${SERVER}/ping`);}catch(e){}},4*60*1000);
-// Auto sync
-setInterval(async()=>{if(vProj&&document.getElementById('page-viewer').classList.contains('active')) await vFetch();},cacheTtlMs);
-
-// ── Ctrl+S to save modal (item 20) ──
-document.addEventListener('keydown',e=>{
-  if(e.key==='s'&&(e.ctrlKey||e.metaKey)&&!document.getElementById('modalOv').classList.contains('hidden')){
-    e.preventDefault();
-    const saveBtn=document.getElementById('m-save');
-    if(saveBtn&&!saveBtn.classList.contains('hidden')) saveBtn.click();
-  }
-});
-
-// ── Expand row preview (item 9) ──
+// ── Expand row (item 9) ──
 function toggleExpand(key){
-  const tr=document.getElementById('tr-'+key);
-  if(!tr) return;
-  const existingExp=document.getElementById('exp-'+key);
-  if(existingExp){ existingExp.remove(); expandedKeys.delete(key); tr.querySelector('.expand-btn').textContent='▶'; return; }
-  expandedKeys.add(key);
-  tr.querySelector('.expand-btn').textContent='▼';
-  const item=vAll.find(i=>i.key===key);
-  const expTr=document.createElement('tr');
-  expTr.id='exp-'+key;
-  expTr.className='expand-row';
-  expTr.innerHTML=`<td colspan="12">
-    <span style="color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500">${key}</span>
-    <span style="margin-left:8px;color:var(--muted);font-size:10px">載入中...</span>
-  </td>`;
+  const tr=document.getElementById('tr-'+key);if(!tr) return;
+  const existing=document.getElementById('exp-'+key);
+  const btn=document.getElementById('eb-'+key);
+  if(existing){existing.remove();if(btn)btn.textContent='▶';expandedKeys.delete(key);return;}
+  expandedKeys.add(key);if(btn)btn.textContent='▼';
+  const expTr=document.createElement('tr');expTr.id='exp-'+key;
+  expTr.innerHTML=`<td colspan="12" style="background:#f8f9ff;font-size:11px;color:var(--dim);padding:6px 12px 8px 52px;line-height:1.6"><span style="color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500">${key}</span> <span style="color:var(--muted)">載入中...</span></td>`;
   tr.after(expTr);
-  // Fetch description
   fetch(`${SERVER}/issue/${key}`).then(r=>r.json()).then(data=>{
     const desc=extractText(data.fields?.description)||'（無描述）';
-    expTr.querySelector('td').innerHTML=`
-      <span style="color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500">${key}</span>
-      <span style="margin-left:10px;color:var(--dim)">${desc.slice(0,200).replace(/</g,'&lt;')}${desc.length>200?'...':''}</span>
-      ${(item?.labels||[]).length?`<span style="margin-left:10px">${item.labels.map(l=>`<span class="lbl-tag">${l}</span>`).join('')}</span>`:''}
-    `;
-  }).catch(()=>{expTr.querySelector('td').innerHTML=`<span style="color:var(--muted)">無法載入描述</span>`;});
+    expTr.querySelector('td').innerHTML=`<span style="color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500">${key}</span> <span style="color:var(--dim)">${desc.slice(0,300).replace(/</g,'&lt;')}${desc.length>300?'...':''}</span>`;
+  }).catch(()=>{});
 }
 
 // ── Inline edit: Status (item 6) ──
@@ -1623,24 +1648,18 @@ async function inlineEditStatus(key,el){
   const transitions=await fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]);
   if(!transitions.length){alert('無法取得狀態選項');return;}
   const item=vAll.find(i=>i.key===key);
-  const cur=item?.status||'';
   const sel=document.createElement('select');
-  sel.className='inline-inp';
-  sel.innerHTML=transitions.map(t=>`<option value="${t.id}" ${cur===t.name?'selected':''}>${t.name}</option>`).join('');
+  sel.style.cssText='border:1px solid var(--acc);border-radius:4px;padding:2px 4px;font-size:11px;outline:none;background:white';
+  sel.innerHTML=transitions.map(t=>`<option value="${t.id}" ${item?.status===t.name?'selected':''}>${t.name}</option>`).join('');
   sel.onclick=e=>e.stopPropagation();
   sel.onchange=async()=>{
-    const transId=sel.value;
-    const transName=sel.options[sel.selectedIndex].text;
-    sel.disabled=true;
+    const transId=sel.value,transName=sel.options[sel.selectedIndex].text;sel.disabled=true;
     try{
       const r=await fetch(`${SERVER}/issue/${key}/transition`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transitionId:transId})});
       const d=await r.json();
-      if(d.ok){
-        if(item){item.status=transName;item.statusCat=d.statusCat||item.statusCat;}
-        addHistory('改狀態',transName,key);
-        vApply();
-      }else{alert('狀態更新失敗');vApply();}
-    }catch(e){alert('狀態更新失敗：'+e.message);vApply();}
+      if(d.ok){if(item)item.status=transName;addHistory('改狀態',transName,key);vApply();}
+      else{alert('狀態更新失敗');vApply();}
+    }catch(e){alert('失敗：'+e.message);vApply();}
   };
   sel.onblur=()=>setTimeout(vApply,200);
   td.innerHTML='';td.appendChild(sel);sel.focus();
@@ -1648,26 +1667,20 @@ async function inlineEditStatus(key,el){
 
 // ── Inline edit: Assignee (item 5) ──
 async function inlineEditAssignee(key,el){
-  if(!vMeta.assignees.length&&vProj){
-    const m=await fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>({assignees:[]}));
-    vMeta.assignees=m.assignees||[];
-  }
-  const td=el.closest('td');
-  const item=vAll.find(i=>i.key===key);
+  if(!vMeta.assignees.length&&vProj){const m=await fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>({assignees:[]}));vMeta.assignees=m.assignees||[];}
+  const td=el.closest('td');const item=vAll.find(i=>i.key===key);
   const sel=document.createElement('select');
-  sel.className='inline-inp';
+  sel.style.cssText='border:1px solid var(--acc);border-radius:4px;padding:2px 4px;font-size:11px;outline:none;background:white;max-width:120px';
   sel.innerHTML='<option value="">未指派</option>'+vMeta.assignees.map(u=>`<option value="${u.accountId}" ${item?.assignee===u.displayName?'selected':''}>${u.displayName}</option>`).join('');
   sel.onclick=e=>e.stopPropagation();
   sel.onchange=async()=>{
-    const accountId=sel.value;
-    const name=sel.options[sel.selectedIndex].text;
-    sel.disabled=true;
+    const accountId=sel.value,name=sel.options[sel.selectedIndex].text;sel.disabled=true;
     try{
       const r=await fetch(`${SERVER}/issue/${key}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignee:accountId||null})});
       const d=await r.json();
-      if(d.ok){if(item) item.assignee=accountId?name:'';addHistory('改 Assignee',name,key);vApply();}
+      if(d.ok){if(item)item.assignee=accountId?name:'';addHistory('改 Assignee',name,key);vApply();}
       else{alert('更新失敗');vApply();}
-    }catch(e){alert('更新失敗：'+e.message);vApply();}
+    }catch(e){alert('失敗：'+e.message);vApply();}
   };
   sel.onblur=()=>setTimeout(vApply,200);
   td.innerHTML='';td.appendChild(sel);sel.focus();
@@ -1675,148 +1688,54 @@ async function inlineEditAssignee(key,el){
 
 // ── Inline edit: Due Date (item 4) ──
 function inlineEditDue(key,el){
-  const td=el.closest('td');
-  const item=vAll.find(i=>i.key===key);
-  const inp=document.createElement('input');
-  inp.type='date'; inp.className='inline-inp';
+  const td=el.closest('td');const item=vAll.find(i=>i.key===key);
+  const inp=document.createElement('input');inp.type='date';
+  inp.style.cssText='border:1px solid var(--acc);border-radius:4px;padding:2px 4px;font-size:11px;outline:none;background:white';
   inp.value=item?.duedate&&item.duedate!=='—'?item.duedate:'';
   inp.onclick=e=>e.stopPropagation();
   inp.onchange=async()=>{
-    const duedate=inp.value;
-    inp.disabled=true;
+    const duedate=inp.value;inp.disabled=true;
     try{
       const r=await fetch(`${SERVER}/issue/${key}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({duedate:duedate||null})});
       const d=await r.json();
-      if(d.ok){if(item) item.duedate=duedate||'—';addHistory('改截止日',duedate||'清除',key);vApply();}
+      if(d.ok){if(item)item.duedate=duedate||'—';addHistory('改截止日',duedate||'清除',key);vApply();}
       else{alert('更新失敗');vApply();}
-    }catch(e){alert('更新失敗：'+e.message);vApply();}
+    }catch(e){alert('失敗：'+e.message);vApply();}
   };
   inp.onblur=()=>setTimeout(vApply,300);
   td.innerHTML='';td.appendChild(inp);inp.focus();
 }
 
-// ── Modal navigation (item 13) ──
-let modalIdx=0;
-function openModal(key){
-  // Build nav list from current filtered rows
-  modalList=[...document.getElementById('tbody').querySelectorAll('.td-key a')].map(a=>a.textContent);
-  modalIdx=modalList.indexOf(key);
-  _openModal(key);
-}
-function modalNav(dir){
-  const newIdx=modalIdx+dir;
-  if(newIdx<0||newIdx>=modalList.length) return;
-  modalIdx=newIdx;
-  _openModal(modalList[modalIdx]);
-}
-async function _openModal(key){
-  curModalKey=key;
-  document.getElementById('modalOv').classList.remove('hidden');
-  document.getElementById('mKey').textContent=key;
-  document.getElementById('mJiraLink').href=`https://${JIRA_DOMAIN}/browse/${key}`;
-  document.getElementById('mNavInfo').textContent=modalList.length?`${modalIdx+1}/${modalList.length}`:'';
-  document.getElementById('mPrev').disabled=modalIdx<=0;
-  document.getElementById('mNext').disabled=modalIdx>=modalList.length-1;
-  document.getElementById('mBody').innerHTML='<div class="mloading"><div class="v-spin"></div>載入中...</div>';
-  try{
-    const[issue,transitions,meta]=await Promise.all([
-      fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
-      fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
-      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
-    ]);
-    renderModal(issue,transitions,meta);
-  }catch(e){document.getElementById('mBody').innerHTML=`<div class="mloading">❌ 載入失敗：${e.message}</div>`;}
-}
-
-// ── Notification: read state & clickable (item 2, 3) ──
-function vCheckNotif(){
-  const dueSoon=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate>=today&&i.duedate<=soon&&i.statusCat!=='done');
-  const overdue=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done');
-  const all=[...overdue,...dueSoon];
-  const unread=all.filter(i=>!notifRead.has(i.key));
-  const badge=document.getElementById('notifBadge');
-  badge.textContent=unread.length||'';
-  badge.classList.toggle('show',unread.length>0);
-  const list=document.getElementById('notifList');
-  if(!all.length){list.innerHTML='<div style="padding:12px 14px;font-size:12px;color:var(--muted)">沒有即將到期的 tickets 🎉</div>';return;}
-  list.innerHTML=all.map(i=>`
-    <div class="notif-item ${notifRead.has(i.key)?'read':''}" id="ni-${i.key}">
-      <a class="notif-item-link" onclick="markNotifRead('${i.key}');document.getElementById('notifPanel').classList.remove('show');openModal('${i.key}')">
-        <div><span class="notif-key">${i.key}</span><span style="font-size:11px;color:var(--dim)">${i.summary.slice(0,50)}${i.summary.length>50?'...':''}</span></div>
-        <div class="notif-due">${i.duedate<today?'⚠ 已過期 '+i.duedate:'🔔 到期 '+i.duedate}</div>
-      </a>
-      ${!notifRead.has(i.key)?`<button onclick="event.stopPropagation();markNotifRead('${i.key}')" style="padding:2px 6px;border:1px solid var(--bdr);border-radius:3px;font-size:10px;background:transparent;cursor:pointer;color:var(--muted);margin-top:4px;">已讀</button>`:''}
-    </div>`).join('');
-}
-function markNotifRead(key){
-  notifRead.add(key);
-  localStorage.setItem('notif_read',JSON.stringify([...notifRead]));
-  vCheckNotif();
-}
-function markAllNotifRead(){
-  const all=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.statusCat!=='done');
-  all.forEach(i=>notifRead.add(i.key));
-  localStorage.setItem('notif_read',JSON.stringify([...notifRead]));
-  vCheckNotif();
-}
-
 // ── Saved filters (item 8) ──
 function saveCurrentFilter(){
-  const name=prompt('請輸入篩選名稱：');
-  if(!name) return;
-  const state={
-    name,proj:vProj,board:vBoard,epic:vEpic,stat:document.getElementById('f-stat').value,
-    asgn:document.getElementById('f-asgn').value,type:document.getElementById('f-type').value,
-    kw:document.getElementById('f-kw').value,date:document.getElementById('f-date').value,
-    due:document.getElementById('f-due').value,statCat:vStatCat,jql:vJql,ts:Date.now()
-  };
-  savedFilters.unshift(state);
-  if(savedFilters.length>10) savedFilters.pop();
+  const name=prompt('篩選名稱：');if(!name) return;
+  const state={name,proj:vProj,stat:document.getElementById('f-stat').value,asgn:document.getElementById('f-asgn').value,type:document.getElementById('f-type').value,kw:document.getElementById('f-kw').value,date:document.getElementById('f-date').value,due:document.getElementById('f-due').value,statCat:vStatCat,jql:vJql,ts:Date.now()};
+  savedFilters.unshift(state);if(savedFilters.length>10)savedFilters.pop();
   localStorage.setItem('jira_saved_filters',JSON.stringify(savedFilters));
-  renderSavedFilters();
-  alert(`✅ 篩選「${name}」已儲存`);
+  renderSavedFilters();alert(`✅ 篩選「${name}」已儲存`);
 }
-function loadSavedFilters(){renderSavedFilters();}
 function renderSavedFilters(){
-  const list=document.getElementById('savedFiltersList');
-  if(!list) return;
-  list.innerHTML=savedFilters.map((f,i)=>`
-    <span class="sf-chip" onclick="applySavedFilter(${i})">${f.name}
-      <span class="sf-del" onclick="event.stopPropagation();deleteSavedFilter(${i})">✕</span>
-    </span>`).join('');
+  const list=document.getElementById('savedFiltersList');if(!list) return;
+  list.innerHTML=savedFilters.map((f,i)=>`<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;background:#deebff;border:1px solid #b3d4ff;border-radius:10px;font-size:10px;color:var(--acc);cursor:pointer;margin:1px" onclick="applySavedFilter(${i})">${f.name}<span onclick="event.stopPropagation();deleteSavedFilter(${i})" style="opacity:.6;font-size:11px;margin-left:2px;cursor:pointer">✕</span></span>`).join('');
 }
 async function applySavedFilter(idx){
   const f=savedFilters[idx];
-  if(f.proj&&f.proj!==vProj){ document.getElementById('f-proj').value=f.proj; await vOnProj(); }
-  if(f.board) document.getElementById('f-board').value=f.board;
-  if(f.epic)  document.getElementById('f-epic').value=f.epic;
-  document.getElementById('f-stat').value=f.stat||'';
-  document.getElementById('f-asgn').value=f.asgn||'';
-  document.getElementById('f-type').value=f.type||'';
-  document.getElementById('f-kw').value=f.kw||'';
-  document.getElementById('f-date').value=f.date||'';
-  document.getElementById('f-due').value=f.due||'';
-  if(f.jql) document.getElementById('f-jql').value=f.jql;
-  vStatCat=f.statCat||'';vJql=f.jql||'';
-  vApply();
+  if(f.proj&&f.proj!==vProj){document.getElementById('f-proj').value=f.proj;await vOnProj();}
+  ['stat','asgn','type','kw','date','due'].forEach(k=>{const el=document.getElementById('f-'+k);if(el&&f[k]!==undefined)el.value=f[k]||'';});
+  if(f.jql)document.getElementById('f-jql').value=f.jql;
+  vStatCat=f.statCat||'';vJql=f.jql||'';vApply();
 }
-function deleteSavedFilter(idx){
-  savedFilters.splice(idx,1);
-  localStorage.setItem('jira_saved_filters',JSON.stringify(savedFilters));
-  renderSavedFilters();
-}
+function deleteSavedFilter(idx){savedFilters.splice(idx,1);localStorage.setItem('jira_saved_filters',JSON.stringify(savedFilters));renderSavedFilters();}
 
 // ── URL state sync (item 11) ──
 function syncUrlState(){
   try{
     const params=new URLSearchParams();
-    if(vProj) params.set('proj',vProj);
-    const kw=document.getElementById('f-kw').value;if(kw) params.set('kw',kw);
-    const stat=document.getElementById('f-stat').value;if(stat) params.set('stat',stat);
-    const asgn=document.getElementById('f-asgn').value;if(asgn) params.set('asgn',asgn);
-    const type=document.getElementById('f-type').value;if(type) params.set('type',type);
-    if(vStatCat) params.set('scat',vStatCat);
-    if(vJql) params.set('jql',vJql);
+    if(vProj)params.set('proj',vProj);
+    const kw=document.getElementById('f-kw').value;if(kw)params.set('kw',kw);
+    const stat=document.getElementById('f-stat').value;if(stat)params.set('stat',stat);
+    if(vStatCat)params.set('scat',vStatCat);
+    if(vJql)params.set('jql',vJql);
     const s=params.toString();
     history.replaceState(null,'',s?`?${s}`:window.location.pathname);
   }catch(e){}
@@ -1825,156 +1744,83 @@ async function restoreUrlState(){
   try{
     const params=new URLSearchParams(window.location.search);
     const proj=params.get('proj');
-    if(proj){ document.getElementById('f-proj').value=proj; await vOnProj(); }
-    const kw=params.get('kw');if(kw) document.getElementById('f-kw').value=kw;
-    const stat=params.get('stat');if(stat) document.getElementById('f-stat').value=stat;
-    const asgn=params.get('asgn');if(asgn) document.getElementById('f-asgn').value=asgn;
-    const type=params.get('type');if(type) document.getElementById('f-type').value=type;
-    const scat=params.get('scat');if(scat) vStatCat=scat;
+    if(proj){document.getElementById('f-proj').value=proj;await vOnProj();}
+    const kw=params.get('kw');if(kw)document.getElementById('f-kw').value=kw;
+    const stat=params.get('stat');if(stat)document.getElementById('f-stat').value=stat;
+    const scat=params.get('scat');if(scat)vStatCat=scat;
     const jql=params.get('jql');if(jql){document.getElementById('f-jql').value=jql;vJql=jql;}
-    if(kw||stat||asgn||type||scat||jql) vApply();
+    if(kw||stat||scat||jql)vApply();
   }catch(e){}
 }
 function shareUrl(){
   syncUrlState();
-  navigator.clipboard.writeText(window.location.href).then(()=>alert('✅ 篩選連結已複製到剪貼簿')).catch(()=>prompt('複製此連結：',window.location.href));
+  navigator.clipboard.writeText(window.location.href).then(()=>alert('✅ 篩選連結已複製')).catch(()=>prompt('複製此連結：',window.location.href));
 }
 
 // ── Filter after create (item 17) ──
 function vFilterCreated(){
   if(!createdKeys.length){vFetch();return;}
   const jql=`issue in (${createdKeys.join(',')})`;
-  document.getElementById('f-proj').value=cSP||'';
-  vProj=cSP||'';
-  document.getElementById('f-jql').value=jql;
-  vJql=jql;
+  if(cSP){document.getElementById('f-proj').value=cSP;vProj=cSP;}
+  document.getElementById('f-jql').value=jql;vJql=jql;
   vFetch();
-}
-
-// ── Cache info display (item 22) ──
-function updateCacheInfo(cached){
-  const el=document.getElementById('cacheInfo');
-  if(!el) return;
-  el.textContent=cached?'⚡ 快取（點重新整理取得即時資料）':'🔄 即時資料';
-  el.style.color=cached?'var(--warn)':'var(--success)';
 }
 
 // ── Clone ticket (item 16) ──
 function showCloneModal(key){
+  if(!key) return;
   cloneSrcKey=key;
   document.getElementById('cloneSrcKey').textContent=key;
   document.getElementById('cloneSummary').value='';
-  document.getElementById('cloneModal').classList.remove('hidden');
+  document.getElementById('cloneModal').style.display='flex';
   setTimeout(()=>document.getElementById('cloneSummary').focus(),100);
 }
 async function doClone(){
   const summary=document.getElementById('cloneSummary').value.trim();
-  const btn=document.querySelector('#cloneModal .conf-btn');
+  const btn=document.querySelector('#cloneModal button:last-child');
   btn.disabled=true;btn.textContent='複製中...';
   try{
     const r=await fetch(`${SERVER}/clone`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:cloneSrcKey,summary:summary||null,project:vProj})});
     const d=await r.json();
     if(d.ok){
-      document.getElementById('cloneModal').classList.add('hidden');
+      document.getElementById('cloneModal').style.display='none';
       addHistory('複製 ticket',`${cloneSrcKey} → ${d.key}`,d.key);
       alert(`✅ 已建立副本：${d.key}`);
       await vFetch();
-    }else{alert('複製失敗：'+JSON.stringify(d.error));}
+    }else{alert('複製失敗：'+JSON.stringify(d.error||d.errors));}
   }catch(e){alert('複製失敗：'+e.message);}
   btn.disabled=false;btn.textContent='建立副本';
 }
-document.getElementById('cloneModal').addEventListener('click',e=>{if(e.target===document.getElementById('cloneModal'))document.getElementById('cloneModal').classList.add('hidden');});
 
-// ── Named draft manager (item 14) ──
-function cSaveDraft(){
-  const name=prompt('草稿名稱：',`草稿 ${new Date().toLocaleString('zh-TW')}`);
-  if(!name) return;
-  const rows=cGetRows();
-  const draft={name,project:cSP,board:cSB,epic:cSE,rows:rows.map(r=>({summary:r.summary,description:r.description,issueTypeId:r.issueTypeId,priorityId:r.priorityId,assigneeId:r.assigneeId,duedate:r.duedate,labels:r.labels?.join(',')||'',parentKey:r.parentKey})),ts:Date.now()};
-  drafts.unshift(draft);
-  if(drafts.length>20) drafts.pop();
-  localStorage.setItem('jira_drafts_v2',JSON.stringify(drafts));
-  alert(`✅ 草稿「${name}」已儲存（${rows.length} 列）`);
-}
-function toggleDraftManager(){
-  const el=document.getElementById('draftManager');
-  el.classList.toggle('hidden');
-  if(!el.classList.contains('hidden')) renderDraftList();
-}
-function renderDraftList(){
-  const list=document.getElementById('draftList');
-  if(!drafts.length){list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px">尚無草稿</div>';return;}
-  list.innerHTML=drafts.map((d,i)=>`<div class="draft-entry">
-    <span class="draft-name">${d.name}</span>
-    <span class="draft-time">${new Date(d.ts).toLocaleDateString('zh-TW')}</span>
-    <button class="add-btn" style="padding:2px 8px;font-size:10px" onclick="loadDraft(${i})">載入</button>
-    <button class="rm-btn" onclick="deleteDraft(${i})">✕</button>
-  </div>`).join('');
-}
-function loadDraft(idx){
-  const d=drafts[idx];
-  if(!confirm(`載入草稿「${d.name}」？（${d.rows?.length||0} 列）`)) return;
-  document.getElementById('c-body').innerHTML='';cRowId=0;
-  (d.rows||[]).forEach(r=>cAddRow(r.summary,r.description,r.duedate,r.issueTypeId,r.assigneeId,r.priorityId,r.labels||'',r.parentKey||''));
-  cUpdateCnt();cUpdateSum();
-  document.getElementById('draftManager').classList.add('hidden');
-  alert('✅ 草稿載入完成');
-}
-function deleteDraft(idx){
-  if(!confirm(`刪除草稿「${drafts[idx].name}」？`)) return;
-  drafts.splice(idx,1);
-  localStorage.setItem('jira_drafts_v2',JSON.stringify(drafts));
-  renderDraftList();
-}
-// Keep old cLoadDraft for compatibility
-function cLoadDraft(){toggleDraftManager();}
-
-// ── Sprint selector (item 15) ──
-async function cOnProj(){
-  const proj=document.getElementById('c-proj').value;
-  document.getElementById('c-confBtn').disabled=!proj;
-  if(!proj){cResetDrop('c-board','請先選空間');cResetDrop('c-epic','請先選空間');cResetDrop('c-sprint','請先選看板');return;}
-  cResetDrop('c-board','載入中...');cResetDrop('c-epic','載入中...');
-  const[boards,epics]=await Promise.all([
-    fetch(`${SERVER}/boards?project=${proj}`).then(r=>r.json()).catch(()=>[]),
-    fetch(`${SERVER}/epics?project=${proj}`).then(r=>r.json()).catch(()=>[])
-  ]);
-  const bSel=document.getElementById('c-board');bSel.disabled=false;bSel.innerHTML='<option value="">不指定看板</option>';
-  boards.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.name;bSel.appendChild(o);});
-  if(!boards.length){bSel.innerHTML='<option value="">此空間無看板</option>';bSel.disabled=true;}
-  bSel.onchange=async()=>{
-    const boardId=bSel.value;
-    if(!boardId){cResetDrop('c-sprint','請先選看板');return;}
-    const sprintSel=document.getElementById('c-sprint');
-    sprintSel.disabled=false;sprintSel.innerHTML='<option value="">載入中...</option>';
-    const sprints=await fetch(`${SERVER}/sprints?boardId=${boardId}`).then(r=>r.json()).catch(()=>[]);
-    sprintSel.innerHTML='<option value="">不指定 Sprint</option>';
-    sprints.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.name} (${s.state})`;sprintSel.appendChild(o);});
-    if(!sprints.length){sprintSel.innerHTML='<option value="">無可用 Sprint</option>';}
-  };
-  const eSel=document.getElementById('c-epic');eSel.disabled=false;eSel.innerHTML='<option value="">不指定 Epic</option>';
-  epics.forEach(e=>{const o=document.createElement('option');o.value=e.key;o.textContent=`${e.key} · ${e.summary}`;eSel.appendChild(o);});
-  if(!epics.length){eSel.innerHTML='<option value="">此空間無 Epic</option>';eSel.disabled=true;}
-}
-
-// ── Auto retry (item 23) ──
-async function fetchWithRetry(url,opts={},retries=2){
-  for(let i=0;i<=retries;i++){
-    try{ return await fetch(url,opts); }
-    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,1000*(i+1))); }
+// ── Ctrl+S save modal ──
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'&&!document.getElementById('modalOv').classList.contains('hidden')){
+    e.preventDefault();
+    const btn=document.getElementById('m-save');
+    if(btn&&!btn.classList.contains('hidden'))btn.click();
   }
-}
+});
 
-// ── Mobile: touch swipe modal nav (item 21) ──
-let touchStartX=0;
-document.getElementById('modal').addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX;},{passive:true});
+// ── Mobile swipe modal nav ──
+let _touchStartX=0;
+document.getElementById('modal').addEventListener('touchstart',e=>{_touchStartX=e.touches[0].clientX;},{passive:true});
 document.getElementById('modal').addEventListener('touchend',e=>{
-  const dx=e.changedTouches[0].clientX-touchStartX;
-  if(Math.abs(dx)>80){if(dx<0) modalNav(1);else modalNav(-1);}
+  const dx=e.changedTouches[0].clientX-_touchStartX;
+  if(Math.abs(dx)>80){if(dx<0)modalNav(1);else modalNav(-1);}
 },{passive:true});
 
-// Override openModal calls from HTML
-// Note: renderModal still used from line above - no change needed
+// ── Init ──
+switchTab('viewer');
+vLoadProjects();
+cLoadProjects();
+renderHistory();
+renderSavedFilters();
+restoreUrlState();
+
+// Keepalive
+setInterval(async()=>{try{await fetch(`${SERVER}/ping`);}catch(e){}},4*60*1000);
+// Auto sync
+setInterval(async()=>{if(vProj&&document.getElementById('page-viewer').classList.contains('active')) await vFetch();},cacheTtlMs);
 </script>
 </body>
 </html>
