@@ -153,10 +153,12 @@ const server = http.createServer(async (req, res) => {
     try{
       const body=await readBody(req);
       const fields={};
-      if(body.assignee!==undefined) fields.assignee=body.assignee?{accountId:body.assignee}:null;
-      if(body.duedate!==undefined)  fields.duedate=body.duedate||null;
-      if(body.priority!==undefined) fields.priority={name:body.priority};
-      if(body.labels!==undefined)   fields.labels=body.labels;
+      if(body.summary!==undefined)    fields.summary=body.summary;
+      if(body.description!==undefined&&body.description!==null) fields.description={type:'doc',version:1,content:[{type:'paragraph',content:[{type:'text',text:body.description}]}]};
+      if(body.assignee!==undefined)   fields.assignee=body.assignee?{accountId:body.assignee}:null;
+      if(body.duedate!==undefined)    fields.duedate=body.duedate||null;
+      if(body.priority!==undefined&&body.priority)   fields.priority={name:body.priority};
+      if(body.labels!==undefined)     fields.labels=body.labels;
       const r=await jiraRequest('PUT',`/rest/api/3/issue/${key}`,{fields});
       cacheDel(`issue:${key}`); cacheDel('tickets:');
       json(res,{ok:r.status===204},r.status===204?200:r.status);
