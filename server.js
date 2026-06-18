@@ -305,12 +305,51 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // /sprints?boardId=123 - get sprints for board (item 15)
+  if(p==='/sprints'&&req.method==='GET'){
+    const{boardId=''}=parsed.query;
+    if(!boardId){json(res,[]);return;}
+    const ck=`sprints:${boardId}`;
+    const c=cacheGet(ck,10*60*1000);
+    if(c){json(res,c);return;}
+    try{
+      const d=await jiraFetch(`/rest/agile/1.0/board/${boardId}/sprint?state=active,future&maxResults=20`);
+      const sprints=(d.values||[]).map(s=>({id:s.id,name:s.name,state:s.state}));
+      cacheSet(ck,sprints); json(res,sprints);
+    }catch(e){json(res,[]);}
+    return;
+  }
+
+  // /clone - clone a ticket (item 16)
+  if(p==='/clone'&&req.method==='POST'){
+    try{
+      const{key,summary,project}=await readBody(req);
+      // Fetch original
+      const orig=await jiraFetch(`/rest/api/3/issue/${key}?fields=summary,description,issuetype,priority,assignee,duedate,labels`);
+      const f=orig.fields||{};
+      const fields={
+        project:{key:project||f.project?.key||'OK'},
+        summary:summary||(f.summary?`[Copy] ${f.summary}`:'Copy'),
+        issuetype:{id:f.issuetype?.id||''},
+      };
+      if(f.description) fields.description=f.description;
+      if(f.priority)    fields.priority={id:f.priority.id};
+      if(f.assignee)    fields.assignee={accountId:f.assignee.accountId};
+      if(f.duedate)     fields.duedate=f.duedate;
+      if(f.labels?.length) fields.labels=f.labels;
+      const r=await jiraRequest('POST','/rest/api/3/issue',{fields});
+      cacheDel('tickets:');
+      json(res,{ok:!!r.body?.key,key:r.body?.key,error:r.body?.errors});
+    }catch(e){json(res,{error:e.message},500);}
+    return;
+  }
+
   // /create-batch
   if(p==='/create-batch'&&req.method==='POST'){
     try{
       const{issues}=await readBody(req);
       if(!Array.isArray(issues)||!issues.length){json(res,{error:'No issues'},400);return;}
-      const issueList=issues.map(({project,summary,description,issueType,priority,assignee,duedate,epic,parentKey,labels})=>{
+      const issueList=issues.map(({project,summary,description,issueType,priority,assignee,duedate,epic,parentKey,labels,sprintId})=>{
         const fields={project:{key:project||'OK'},summary,issuetype:{id:issueType}};
         if(priority)    fields.priority={id:priority};
         if(description) fields.description={type:'doc',version:1,content:[{type:'paragraph',content:[{type:'text',text:description}]}]};
@@ -319,6 +358,7 @@ const server = http.createServer(async (req, res) => {
         if(epic)        fields['customfield_10014']=epic;
         if(parentKey)   fields.parent={key:parentKey};
         if(labels&&labels.length) fields.labels=labels;
+        if(sprintId)    fields['customfield_10020']={id:parseInt(sprintId)};
         return{fields};
       });
       const BATCH=50;
