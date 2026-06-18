@@ -1,395 +1,1826 @@
-const http = require('http');
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
-const url = require('url');
-
-const PORT        = process.env.PORT || 3000;
-const JIRA_EMAIL  = process.env.JIRA_EMAIL  || '';
-const JIRA_TOKEN  = process.env.JIRA_TOKEN  || '';
-const JIRA_DOMAIN = process.env.JIRA_DOMAIN || 'viewsonic-vsi.atlassian.net';
-const AUTH        = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64');
-
-// ── Cache ──
-const cache = new Map();
-function cacheGet(key, ttl) {
-  const item = cache.get(key);
-  if (!item) return null;
-  if (Date.now() - item.ts > ttl) { cache.delete(key); return null; }
-  return item.data;
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JIRA Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f5f7;--surf:#fff;--surf2:#f8f9fa;--bdr:#dfe1e6;--text:#172b4d;--muted:#6b778c;--dim:#42526e;--acc:#0052CC;--danger:#de350b;--success:#006644;--warn:#974f0c;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-weight:300;min-height:100vh;}
+/* Topbar */
+.topbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:0 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.08);height:48px;flex-wrap:nowrap;}
+.logo{width:22px;height:22px;background:#0052CC;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo svg{width:13px;height:13px;fill:white;}
+.tb-title{font-size:13px;font-weight:500;white-space:nowrap;}
+.tb-sep{width:1px;height:18px;background:var(--bdr);flex-shrink:0;}
+.tb-ts{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+.tab-bar{display:flex;gap:3px;}
+.tab-btn{padding:5px 12px;border:1px solid var(--bdr);border-radius:6px;background:transparent;color:var(--muted);font-size:12px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.tab-btn:hover{border-color:var(--acc);color:var(--acc);}
+.tab-btn.active{background:var(--acc);border-color:var(--acc);color:white;}
+.tb-actions{display:flex;gap:4px;margin-left:auto;align-items:center;}
+.tb-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--dim);font-size:11px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;white-space:nowrap;}
+.tb-btn:hover{border-color:var(--acc);color:var(--acc);}
+.tb-btn:disabled{opacity:.5;cursor:not-allowed;}
+.tb-btn svg{width:11px;height:11px;}
+.tb-btn.loading svg{animation:spin .7s linear infinite;}
+/* Cache TTL selector */
+.cache-sel{padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:11px;color:var(--dim);background:var(--surf2);font-family:'IBM Plex Mono',monospace;cursor:pointer;}
+/* Pages */
+.page{display:none;}.page.active{display:block;}
+/* ══ VIEWER ══ */
+.v-wrap{padding:12px 12px 60px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;}
+.stat{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:9px 12px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;transition:border-color .15s;}
+.stat:hover,.stat.af{border-color:var(--acc);background:#f0f4ff;}
+.stat-n{font-size:20px;font-weight:500;font-family:'IBM Plex Mono',monospace;}
+.stat-l{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.05em;}
+.stat-overdue{font-size:10px;color:var(--danger);margin-top:2px;font-family:'IBM Plex Mono',monospace;}
+/* Progress */
+.prog-wrap{height:3px;background:var(--bdr);border-radius:2px;margin-bottom:6px;display:none;}
+.prog-bar{height:100%;background:var(--acc);border-radius:2px;transition:width .4s;}
+.prog-text{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-bottom:6px;display:none;text-align:center;}
+/* Filter bar */
+.fbar{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.fbar-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.fbar-title::after{content:'';flex:1;height:1px;background:var(--bdr);}
+.frow{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;}
+.fg{display:flex;flex-direction:column;gap:3px;min-width:110px;}
+.fg.wide{min-width:160px;flex:1;}
+.fg-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:'IBM Plex Mono',monospace;}
+.fg-sel,.fg-inp{background:var(--surf2);border:1px solid var(--bdr);border-radius:5px;padding:5px 8px;color:var(--text);font-size:11px;font-family:'IBM Plex Mono',monospace;outline:none;transition:border-color .15s;width:100%;}
+.fg-sel:focus,.fg-inp:focus{border-color:var(--acc);}
+.fg-inp::placeholder{color:var(--muted);}
+/* JQL input */
+.jql-row{margin-top:8px;display:flex;gap:6px;align-items:center;}
+.jql-inp{flex:1;background:var(--surf2);border:1px solid var(--bdr);border-radius:5px;padding:5px 8px;color:var(--text);font-size:11px;font-family:'IBM Plex Mono',monospace;outline:none;}
+.jql-inp:focus{border-color:var(--acc);}
+.jql-inp::placeholder{color:var(--muted);}
+.jql-btn{padding:5px 12px;background:var(--acc);border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;white-space:nowrap;}
+.jql-btn:hover{background:#0065ff;}
+.btn-rst{padding:5px 10px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;white-space:nowrap;}
+.btn-rst:hover{border-color:var(--dim);color:var(--text);}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
+.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;background:#deebff;border:1px solid #b3d4ff;border-radius:10px;font-size:10px;color:var(--acc);font-family:'IBM Plex Mono',monospace;}
+.chip-x{cursor:pointer;opacity:.6;font-size:11px;line-height:1;}.chip-x:hover{opacity:1;}
+/* Column toggles */
+.col-bar{display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap;}
+.col-lbl{font-size:10px;color:var(--muted);}
+.col-btn{padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf2);color:var(--dim);font-size:10px;cursor:pointer;transition:all .15s;}
+.col-btn.on{background:#deebff;border-color:#b3d4ff;color:var(--acc);}
+/* Table */
+.tbl-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.tbl-scroll{overflow-x:auto;}
+table.vt{width:100%;min-width:780px;border-collapse:collapse;}
+table.vt thead tr{background:var(--surf2);border-bottom:2px solid var(--bdr);}
+table.vt th{text-align:left;padding:7px 9px;font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:'IBM Plex Mono',monospace;white-space:nowrap;cursor:pointer;user-select:none;}
+table.vt th:hover{color:var(--dim);}
+table.vt th.sorted{color:var(--acc);}
+table.vt th .sa{margin-left:2px;opacity:.4;font-style:normal;font-size:10px;}
+table.vt th.sorted .sa{opacity:1;}
+table.vt tbody tr{border-bottom:1px solid var(--bdr);transition:background .1s;cursor:pointer;}
+table.vt tbody tr:last-child{border-bottom:none;}
+table.vt tbody tr:hover{background:#f0f4ff;}
+table.vt tbody tr.sel-row{background:#e6f0ff;}
+table.vt td{padding:6px 9px;font-size:12px;vertical-align:middle;}
+.td-cb{width:28px;padding:6px 4px 6px 10px;}
+.td-cb input{cursor:pointer;width:14px;height:14px;}
+.td-key a{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--acc);text-decoration:none;white-space:nowrap;}
+.td-key a:hover{text-decoration:underline;}
+.td-sum{max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.td-sum a{color:var(--text);text-decoration:none;}
+.td-sum a:hover{color:var(--acc);}
+.sum-edit-btn{display:none;margin-left:5px;font-size:11px;cursor:pointer;opacity:.6;}
+.sum-edit-btn:hover{opacity:1;}
+table.vt tbody tr:hover .sum-edit-btn{display:inline;}
+.badge{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:500;white-space:nowrap;font-family:'IBM Plex Mono',monospace;}
+.b-todo{background:#f4f5f7;color:#42526e;border:1px solid #dfe1e6;}
+.b-prog{background:#fffae6;color:var(--warn);border:1px solid #ffe380;}
+.b-done{background:#e3fcef;color:var(--success);border:1px solid #abf5d1;}
+.td-per{white-space:nowrap;font-size:11px;color:var(--dim);max-width:90px;overflow:hidden;text-overflow:ellipsis;}
+.td-dt{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;line-height:1.4;}
+.td-dt.od{color:var(--danger);font-weight:500;}
+.tbl-foot{padding:7px 10px;font-size:10px;color:var(--muted);border-top:1px solid var(--bdr);background:var(--surf2);border-radius:0 0 8px 8px;font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:10px;}
+.state-box{padding:44px 0;text-align:center;color:var(--muted);font-size:13px;}
+.v-spin{width:20px;height:20px;border:2px solid var(--bdr);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 8px;}
+/* Batch action bar */
+.batch-bar{display:none;align-items:center;gap:8px;padding:8px 12px;background:#deebff;border:1px solid #b3d4ff;border-radius:6px;margin-bottom:8px;font-size:12px;}
+.batch-bar.show{display:flex;}
+.batch-sel{padding:4px 8px;border:1px solid #b3d4ff;border-radius:5px;font-size:11px;background:white;font-family:'IBM Plex Mono',monospace;}
+.batch-act{padding:4px 10px;background:var(--acc);border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
+.batch-act:hover{background:#0065ff;}
+.batch-clear{padding:4px 10px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--dim);font-size:11px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
+/* History panel */
+.hist-panel{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);display:none;}
+.hist-panel.show{display:block;}
+.hist-title{font-size:11px;font-weight:500;margin-bottom:8px;color:var(--dim);display:flex;align-items:center;gap:6px;}
+.hist-item{font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--bdr);font-family:'IBM Plex Mono',monospace;}
+.hist-item:last-child{border-bottom:none;}
+.hist-key{color:var(--acc);margin-right:6px;}
+.hist-time{color:var(--muted);font-size:10px;float:right;}
+/* Notification badge */
+.notif-badge{display:none;position:absolute;top:4px;right:4px;width:16px;height:16px;background:var(--danger);border-radius:50%;font-size:9px;color:white;align-items:center;justify-content:center;font-weight:500;}
+.notif-badge.show{display:flex;}
+.notif-panel{display:none;position:fixed;top:56px;right:12px;width:320px;background:var(--surf);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:150;max-height:400px;overflow-y:auto;}
+.notif-panel.show{display:block;}
+.notif-header{padding:10px 14px;border-bottom:1px solid var(--bdr);font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;}
+.notif-item{padding:10px 14px;border-bottom:1px solid var(--bdr);font-size:12px;}
+.notif-item:last-child{border-bottom:none;}
+.notif-key{color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;}
+.notif-due{color:var(--danger);font-size:10px;font-family:'IBM Plex Mono',monospace;}
+/* Modal */
+.modal-ov{position:fixed;inset:0;background:rgba(9,30,66,.5);z-index:200;display:flex;align-items:flex-start;justify-content:flex-end;}
+.modal-ov.hidden{display:none!important;}
+.modal{width:min(620px,100vw);height:100vh;background:var(--surf);box-shadow:-4px 0 20px rgba(0,0,0,.15);overflow-y:auto;display:flex;flex-direction:column;}
+.modal-hdr{padding:14px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;position:sticky;top:0;background:var(--surf);z-index:1;}
+.modal-key{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--acc);font-weight:500;}
+.modal-close{margin-left:auto;width:26px;height:26px;border:none;background:transparent;cursor:pointer;font-size:16px;color:var(--muted);border-radius:4px;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{background:var(--surf2);color:var(--text);}
+.modal-body{padding:18px;flex:1;}
+.modal-sum{font-size:15px;font-weight:500;margin-bottom:14px;line-height:1.4;}
+.msec{margin-bottom:14px;}
+.msec-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:'IBM Plex Mono',monospace;margin-bottom:5px;}
+.mdesc{font-size:12px;color:var(--dim);line-height:1.6;background:var(--surf2);border-radius:6px;padding:10px 12px;white-space:pre-wrap;max-height:200px;overflow-y:auto;}
+.mmeta{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mfield{background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:9px 11px;}
+.mfield label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-family:'IBM Plex Mono',monospace;display:block;margin-bottom:4px;}
+.mfield select,.mfield input[type=date]{width:100%;background:transparent;border:none;font-size:12px;color:var(--text);outline:none;font-family:'IBM Plex Sans',sans-serif;}
+.mfield select{cursor:pointer;}
+.msave{margin-top:8px;padding:5px 12px;background:var(--acc);border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;transition:background .15s;}
+.msave:hover{background:#0065ff;}
+.msave:disabled{opacity:.5;}
+.mstatus-opts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.mstatus-opt{padding:3px 9px;border:1px solid var(--bdr);border-radius:4px;font-size:10px;cursor:pointer;background:var(--surf2);color:var(--dim);transition:all .15s;}
+.mstatus-opt:hover{border-color:var(--acc);color:var(--acc);}
+.mstatus-opt.cur{background:#deebff;border-color:var(--acc);color:var(--acc);}
+.mlinks{margin-top:6px;}
+.mlink-item{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:11px;}
+.mlink-item:last-child{border-bottom:none;}
+.mlink-type{font-size:10px;color:var(--muted);min-width:80px;}
+.msubtasks{margin-top:6px;}
+.msub-item{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:11px;}
+.msub-item:last-child{border-bottom:none;}
+.msub-item a{color:var(--acc);text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:10px;}
+.mcomments{margin-top:6px;}
+.mcomment{border-bottom:1px solid var(--bdr);padding:8px 0;font-size:11px;line-height:1.5;}
+.mcomment:last-child{border-bottom:none;}
+.mcomment-author{font-weight:500;color:var(--dim);margin-right:5px;}
+.mcomment-date{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.mcomment-text{margin-top:3px;color:var(--dim);}
+/* Add comment / subtask forms */
+.mform{margin-top:10px;background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:10px;}
+.mform textarea{width:100%;border:1px solid var(--bdr);border-radius:4px;padding:6px 8px;font-size:11px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);resize:vertical;min-height:60px;outline:none;}
+.mform textarea:focus{border-color:var(--acc);}
+.mform-row{display:flex;gap:6px;margin-top:6px;align-items:center;}
+.mform input[type=text]{flex:1;border:1px solid var(--bdr);border-radius:4px;padding:5px 8px;font-size:11px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);outline:none;}
+.mform input[type=text]:focus{border-color:var(--acc);}
+.mform-btn{padding:5px 12px;background:var(--acc);border:none;border-radius:4px;color:white;font-size:11px;cursor:pointer;white-space:nowrap;}
+.mform-btn:hover{background:#0065ff;}
+.mform-btn:disabled{opacity:.5;}
+.mloading{padding:36px;text-align:center;color:var(--muted);}
+/* ══ CREATOR ══ */
+.c-wrap{max-width:1200px;margin:16px auto;padding:0 12px 60px;}
+.steps{display:flex;margin-bottom:14px;background:var(--surf);border:1px solid var(--bdr);border-radius:8px;overflow:hidden;}
+.step{flex:1;padding:10px 14px;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);border-right:1px solid var(--bdr);}
+.step:last-child{border-right:none;}
+.step.active{background:#deebff;color:var(--acc);}
+.step.done{background:#e3fcef;color:var(--success);}
+.step-num{width:18px;height:18px;border-radius:50%;background:var(--bdr);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0;}
+.step.active .step-num{background:var(--acc);color:white;}
+.step.done .step-num{background:var(--success);color:white;}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.card-title{font-size:14px;font-weight:500;margin-bottom:4px;}
+.card-desc{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+.sel-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+.sel-grp{display:flex;flex-direction:column;gap:3px;}
+.c-lbl{font-size:10px;color:var(--dim);font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;}
+.fsel{background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;min-width:180px;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236b778c' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px;}
+.fsel:focus{border-color:var(--acc);}
+.fsel:disabled{opacity:.5;cursor:not-allowed;}
+.conf-btn{padding:7px 16px;background:var(--acc);border:none;border-radius:6px;color:white;font-size:12px;cursor:pointer;transition:background .15s;white-space:nowrap;align-self:flex-end;}
+.conf-btn:hover{background:#0065ff;}
+.conf-btn:disabled{opacity:.5;cursor:not-allowed;}
+.c-tbl-wrap{overflow-x:auto;margin-bottom:10px;}
+table.ct{width:100%;border-collapse:collapse;font-size:11px;}
+table.ct thead tr{background:var(--surf2);border-bottom:2px solid var(--bdr);}
+table.ct th{padding:7px 7px;text-align:left;font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+table.ct th .req{color:var(--danger);}
+table.ct tbody tr{border-bottom:1px solid var(--bdr);}
+table.ct tbody tr:last-child{border-bottom:none;}
+table.ct tbody tr:hover{background:#f8f9ff;}
+table.ct td{padding:4px 5px;vertical-align:middle;}
+.rn{color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:10px;width:24px;text-align:center;}
+.ci{width:100%;background:transparent;border:1px solid transparent;border-radius:4px;padding:4px 6px;font-size:11px;color:var(--text);outline:none;transition:all .15s;}
+.ci:focus,.ci:hover{background:#fff;border-color:#dfe1e6;}
+.ci:focus{border-color:var(--acc);}
+.ci::placeholder{color:#c1c7d0;}
+.cs{width:100%;background:transparent;border:1px solid transparent;border-radius:4px;padding:4px 6px;font-size:11px;color:var(--text);outline:none;transition:all .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%236b778c' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 4px center;padding-right:16px;cursor:pointer;}
+.cs:focus,.cs:hover{background:#fff;border-color:#dfe1e6;}
+.cs:focus{border-color:var(--acc);}
+.rm-btn{padding:2px 6px;background:transparent;border:1px solid var(--bdr);border-radius:3px;color:var(--muted);font-size:10px;cursor:pointer;transition:all .15s;}
+.rm-btn:hover{border-color:var(--danger);color:var(--danger);}
+.bot-bar{display:flex;align-items:center;gap:8px;padding:8px 0;}
+.add-btn{display:flex;align-items:center;gap:4px;padding:5px 12px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--dim);font-size:11px;cursor:pointer;transition:all .15s;}
+.add-btn:hover{border-color:var(--acc);color:var(--acc);}
+.add-multi{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
+.add-multi input{width:40px;padding:3px 5px;border:1px solid var(--bdr);border-radius:4px;font-size:11px;text-align:center;outline:none;}
+.add-multi input:focus{border-color:var(--acc);}
+.rc{margin-left:auto;font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.sum-bar{display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;margin-bottom:10px;font-size:11px;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px;}
+.dok{background:#36b37e;}.derr{background:var(--danger);}.dem{background:var(--bdr);}
+.sub-btn{padding:8px 20px;background:var(--acc);border:none;border-radius:7px;color:white;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:6px;}
+.sub-btn:hover{background:#0065ff;}
+.sub-btn:disabled{opacity:.5;cursor:not-allowed;}
+.cspin{width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+.sub-btn.loading .cspin{display:block;}
+.clr-btn{padding:8px 12px;background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--muted);font-size:11px;cursor:pointer;transition:all .15s;}
+.clr-btn:hover{border-color:var(--danger);color:var(--danger);}
+.res-card{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.res-title{font-size:14px;font-weight:500;margin-bottom:12px;}
+.res-stats{display:flex;gap:14px;margin-bottom:12px;font-size:12px;}
+.sok{color:var(--success);font-weight:500;}.sfail{color:var(--danger);font-weight:500;}
+.res-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bdr);font-size:11px;}
+.res-row:last-child{border-bottom:none;}
+.rkey a{color:var(--acc);text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;}
+.rkey a:hover{text-decoration:underline;}
+.act-row{display:flex;gap:7px;margin-top:14px;}
+.sec-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--dim);font-size:11px;cursor:pointer;transition:all .15s;}
+.sec-btn:hover{border-color:var(--acc);color:var(--acc);}
+.ld-msg{padding:8px 0;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.mini-spin{width:13px;height:13px;border:2px solid var(--bdr);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+/* Excel import */
+.xl-bar{margin-bottom:12px;padding:10px 12px;background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+/* Excel preview modal (item 16) */
+.xl-preview{display:none;margin-top:10px;background:var(--surf);border:1px solid var(--bdr);border-radius:6px;padding:12px;max-height:320px;overflow-y:auto;}
+.xl-preview.show{display:block;}
+.xl-preview-title{font-size:11px;font-weight:500;margin-bottom:8px;color:var(--dim);}
+table.xl-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+table.xl-tbl th{padding:5px 8px;background:var(--surf2);border-bottom:1px solid var(--bdr);font-size:10px;text-align:left;color:var(--muted);}
+table.xl-tbl td{padding:4px 8px;border-bottom:1px solid var(--bdr);font-size:10px;}
+table.xl-tbl tr:last-child td{border-bottom:none;}
+.xl-confirm-row{display:flex;gap:6px;margin-top:8px;align-items:center;}
+/* Draft */
+.draft-bar{display:flex;gap:6px;margin-bottom:8px;}
+.draft-btn{padding:4px 10px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--dim);font-size:11px;cursor:pointer;transition:all .15s;}
+.draft-btn:hover{border-color:var(--acc);color:var(--acc);}
+/* RWD */
+@media(max-width:640px){
+  .topbar{padding:0 8px;gap:5px;}.tb-title{display:none;}.tb-ts{display:none;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .frow{flex-direction:column;}.fg{min-width:100%;}
+  .col-bar{display:none;}.modal{width:100vw;}
+  .v-wrap{padding:8px 6px 60px;}.c-wrap{padding:0 6px 60px;}
+  .mmeta{grid-template-columns:1fr;}
 }
-function cacheSet(key, data) { cache.set(key, { data, ts: Date.now() }); }
-function cacheDel(pattern) { cache.forEach((v,k) => { if(k.includes(pattern)) cache.delete(k); }); }
+.hidden{display:none!important;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
 
-// ── Helpers ──
-function jiraFetch(apiPath) {
-  return new Promise((resolve, reject) => {
-    const opts = { hostname: JIRA_DOMAIN, path: apiPath, method: 'GET', headers: { 'Authorization': 'Basic '+AUTH, 'Accept': 'application/json' } };
-    const req = https.request(opts, r => { let b=''; r.on('data',c=>b+=c); r.on('end',()=>{ try{resolve(JSON.parse(b))}catch(e){reject(e)} }); });
-    req.on('error', reject); req.end();
+<div class="topbar">
+  <div class="logo"><svg viewBox="0 0 24 24"><path d="M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.056A5.215 5.215 0 0012.575 24V12.518a1.005 1.005 0 00-1.004-1.005zm5.723-5.756H5.757a5.215 5.215 0 005.214 5.214h2.13v2.057a5.215 5.215 0 005.215 5.214V6.762a1.005 1.005 0 00-1.022-1.005zM23.013 0H11.455a5.215 5.215 0 005.215 5.215h2.129v2.057A5.215 5.215 0 0024 12.486V1.005A1.005 1.005 0 0023.013 0z"/></svg></div>
+  <span class="tb-title">JIRA Tools</span>
+  <div class="tb-sep"></div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-viewer" onclick="switchTab('viewer')">📋 Viewer</button>
+    <button class="tab-btn" id="tab-creator" onclick="switchTab('creator')">✚ Creator</button>
+  </div>
+  <div class="tb-actions">
+    <button class="tb-btn" id="refreshBtn" onclick="vFetch()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+      重新整理
+    </button>
+    <button class="tb-btn" id="exportBtn" onclick="vExport()">⬇ 匯出</button>
+    <button class="tb-btn" id="histBtn" onclick="toggleHist()" title="操作歷史">🕐 歷史</button>
+    <div style="position:relative">
+      <button class="tb-btn" id="notifBtn" onclick="toggleNotif()">🔔 通知
+        <span class="notif-badge" id="notifBadge"></span>
+      </button>
+    </div>
+    <select class="cache-sel" id="cacheTtl" title="快取時間" onchange="updateCacheTtl()">
+      <option value="1">快取 1 分</option>
+      <option value="3">快取 3 分</option>
+      <option value="5" selected>快取 5 分</option>
+      <option value="10">快取 10 分</option>
+    </select>
+    <span class="tb-ts" id="tb-ts"></span>
+  </div>
+</div>
+
+<!-- Notification panel -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-header" style="display:flex;align-items:center">🔔 即將到期 / 已過期
+    <button onclick="markAllNotifRead()" style="margin-left:auto;font-size:10px;color:var(--acc);border:none;background:none;cursor:pointer;padding:0">全部已讀</button>
+  </div>
+  <div id="notifList"></div>
+</div>
+
+<!-- ══ VIEWER ══ -->
+<div class="page active" id="page-viewer">
+<div class="v-wrap">
+
+  <!-- Stats -->
+  <div class="stats" style="grid-template-columns:repeat(5,1fr)">
+    <div class="stat" id="stat-all" onclick="vStatF('')">
+      <div class="stat-n" id="s-tot">—</div><div class="stat-l">Total</div>
+    </div>
+    <div class="stat" id="stat-todo" onclick="vStatF('todo')">
+      <div class="stat-n" id="s-todo" style="color:#42526e">—</div><div class="stat-l">To Do</div>
+    </div>
+    <div class="stat" id="stat-prog" onclick="vStatF('indeterminate')">
+      <div class="stat-n" id="s-prog" style="color:#974f0c">—</div><div class="stat-l">In Progress</div>
+    </div>
+    <div class="stat" id="stat-done" onclick="vStatF('done')">
+      <div class="stat-n" id="s-done" style="color:#006644">—</div><div class="stat-l">Done</div>
+    </div>
+    <div class="stat" id="stat-od" onclick="vStatF('overdue')" style="border-color:#ffbdad">
+      <div class="stat-n" id="s-od" style="color:var(--danger)">—</div><div class="stat-l" style="color:var(--danger)">⚠ 過期</div>
+    </div>
+  </div>
+
+  <!-- History panel (item 23) -->
+  <div class="hist-panel" id="histPanel">
+    <div class="hist-title">🕐 操作歷史記錄 <button class="draft-btn" style="margin-left:auto" onclick="clearHistory()">清除</button></div>
+    <div id="histList"></div>
+  </div>
+
+  <!-- Saved filters -->
+  <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap;font-size:10px;">
+    <span style="color:var(--muted)">常用篩選：</span>
+    <div id="savedFiltersList"></div>
+    <button onclick="saveCurrentFilter()" style="padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf2);color:var(--dim);font-size:10px;cursor:pointer">＋ 儲存篩選</button>
+    <button onclick="shareUrl()" style="padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf2);color:var(--dim);font-size:10px;cursor:pointer">🔗 分享連結</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="fbar">
+    <div class="fbar-title">篩選</div>
+    <div class="frow">
+      <div class="fg wide"><div class="fg-lbl">關鍵字</div><input class="fg-inp" id="f-kw" placeholder="Key、標題..." oninput="vApply()"></div>
+      <div class="fg"><div class="fg-lbl">專案</div><select class="fg-sel" id="f-proj" onchange="vOnProj()"><option value="">— 請選擇 —</option></select></div>
+      <div class="fg"><div class="fg-lbl">看板</div><select class="fg-sel" id="f-board" onchange="vOnBoard()"><option value="">全部</option></select></div>
+      <div class="fg"><div class="fg-lbl">Epic</div><select class="fg-sel" id="f-epic" onchange="vOnEpic()"><option value="">全部</option></select></div>
+      <div class="fg"><div class="fg-lbl">Status</div><select class="fg-sel" id="f-stat" onchange="vApply()"><option value="">全部</option></select></div>
+      <div class="fg"><div class="fg-lbl">負責人</div><select class="fg-sel" id="f-asgn" onchange="vApply()"><option value="">全部</option></select></div>
+      <div class="fg"><div class="fg-lbl">類型</div><select class="fg-sel" id="f-type" onchange="vApply()"><option value="">全部</option></select></div>
+      <div class="fg"><div class="fg-lbl">更新日期</div><input class="fg-inp" id="f-date" type="date" oninput="vApply()"></div>
+      <div class="fg"><div class="fg-lbl">截止日期</div><input class="fg-inp" id="f-due" type="date" oninput="vApply()"></div>
+      <div class="fg" style="justify-content:flex-end"><button class="btn-rst" onclick="vReset()">✕ 清除</button></div>
+    </div>
+    <!-- JQL (item 11) -->
+    <div class="jql-row">
+      <span style="font-size:10px;color:var(--muted);white-space:nowrap">JQL：</span>
+      <input class="jql-inp" id="f-jql" placeholder='例：assignee = currentUser() AND status != Done AND due <= "2026-12-31"'>
+      <button class="jql-btn" onclick="vRunJql()">執行</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <!-- Column toggles (item 10 from previous) -->
+  <div class="col-bar">
+    <span class="col-lbl">顯示欄位：</span>
+    <button class="col-btn on" data-col="type" onclick="toggleCol(this)">Type</button>
+    <button class="col-btn on" data-col="status" onclick="toggleCol(this)">Status</button>
+    <button class="col-btn on" data-col="priority" onclick="toggleCol(this)">Priority</button>
+    <button class="col-btn on" data-col="assignee" onclick="toggleCol(this)">Assignee</button>
+    <button class="col-btn on" data-col="reporter" onclick="toggleCol(this)">Reporter</button>
+    <button class="col-btn on" data-col="labels" onclick="toggleCol(this)">Labels</button>
+    <button class="col-btn on" data-col="duedate" onclick="toggleCol(this)">截止日期</button>
+    <button class="col-btn on" data-col="updated" onclick="toggleCol(this)">Updated</button>
+  </div>
+
+  <!-- Batch action bar (item 12) -->
+  <div class="batch-bar" id="batchBar">
+    <span id="batchCount" style="font-weight:500;color:var(--acc)">0 筆已選</span>
+    <select class="batch-sel" id="batchField">
+      <option value="">選擇要修改的欄位...</option>
+      <option value="assignee">Assignee</option>
+      <option value="status">Status</option>
+    </select>
+    <select class="batch-sel" id="batchValue" style="display:none"></select>
+    <button class="batch-act" onclick="applyBatch()">套用</button>
+    <button class="batch-clear" onclick="clearSelect()">取消選擇</button>
+  </div>
+
+  <!-- Progress (item 2) -->
+  <div class="prog-wrap" id="progWrap"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
+  <div class="prog-text" id="progText"></div>
+
+  <!-- Table -->
+  <div class="tbl-wrap">
+    <div class="tbl-scroll">
+    <table class="vt" id="vTable">
+      <thead><tr>
+        <th class="td-cb"><input type="checkbox" id="selAll" onchange="toggleSelAll(this)" title="全選"></th>
+        <th style="width:20px;padding:7px 2px"></th>
+        <th data-col="type" id="th-type" onclick="vSort('type')">Type <i class="sa">↕</i></th>
+        <th id="th-key" onclick="vSort('key')">Key <i class="sa">↕</i></th>
+        <th>Summary</th>
+        <th data-col="status" id="th-status" onclick="vSort('status')">Status <i class="sa">↕</i></th>
+        <th data-col="priority" id="th-priority" onclick="vSort('priority')">Priority <i class="sa">↕</i></th>
+        <th data-col="assignee" id="th-assignee" onclick="vSort('assignee')">Assignee <i class="sa">↕</i></th>
+        <th data-col="reporter" id="th-reporter" onclick="vSort('reporter')">Reporter <i class="sa">↕</i></th>
+        <th data-col="labels" id="th-labels">Labels</th>
+        <th data-col="duedate" id="th-duedate" onclick="vSort('duedate')" style="min-width:52px">截止 <i class="sa">↕</i></th>
+        <th data-col="updated" id="th-updated" onclick="vSort('updated')" style="min-width:52px">Updated <i class="sa">↕</i></th>
+      </tr></thead>
+      <tbody id="tbody"><tr><td colspan="10"><div class="state-box">← 請先選擇專案</div></td></tr></tbody>
+    </table>
+    </div>
+    <div class="tbl-foot" id="footer">
+      <span id="footerText"></span>
+      <span id="cacheInfo" style="margin-left:auto;color:var(--muted)"></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ CREATOR ══ -->
+<div class="page" id="page-creator">
+<div class="c-wrap">
+  <div class="steps">
+    <div class="step active" id="c-step1"><div class="step-num">1</div>選擇空間 / 看板 / Epic</div>
+    <div class="step" id="c-step2"><div class="step-num">2</div>填寫 Tickets</div>
+    <div class="step" id="c-step3"><div class="step-num">3</div>建立完成</div>
+  </div>
+  <div class="card" id="c-card1">
+    <div class="card-title">Step 1 — 選擇空間、看板與 Epic</div>
+    <div class="card-desc">選擇 Jira 空間，系統自動載入看板與 Epic（選填）。</div>
+    <div id="c-loading" class="ld-msg"><div class="mini-spin"></div>載入專案列表中...</div>
+    <div id="c-selWrap" class="hidden">
+      <div class="sel-row">
+        <div class="sel-grp"><div class="c-lbl">空間 <span style="color:var(--danger)">*</span></div><select class="fsel" id="c-proj" onchange="cOnProj()"><option value="">請選擇...</option></select></div>
+        <div class="sel-grp"><div class="c-lbl">看板 <span style="color:var(--muted)">選填</span></div><select class="fsel" id="c-board" disabled><option value="">請先選空間</option></select></div>
+        <div class="sel-grp"><div class="c-lbl">Epic <span style="color:var(--muted)">選填</span></div><select class="fsel" id="c-epic" disabled><option value="">請先選空間</option></select></div>
+        <div class="sel-grp"><div class="c-lbl">Sprint <span style="color:var(--muted)">選填</span></div><select class="fsel" id="c-sprint" disabled><option value="">請先選看板</option></select></div>
+        <button class="conf-btn" id="c-confBtn" onclick="cConfirm()" disabled>確認 →</button>
+      </div>
+    </div>
+  </div>
+  <div class="card hidden" id="c-card2">
+    <div class="card-title">Step 2 — 填寫 Ticket 資料</div>
+    <div class="card-desc" id="c-card2desc">每一列代表一張 ticket，<span style="color:var(--danger)">*</span> 為必填。</div>
+    <!-- Excel import (item 16 preview) -->
+    <div class="xl-bar">
+      <span style="font-size:12px;color:var(--dim);font-weight:500;">📂 匯入 Excel</span>
+      <span style="font-size:11px;color:var(--muted);">支援 Project Development Documents Checking List</span>
+      <label style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:var(--acc);border-radius:5px;color:white;font-size:11px;cursor:pointer;" onmouseover="this.style.background='#0065ff'" onmouseout="this.style.background='var(--acc)'">
+        ⬆ 選擇 Excel
+        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="cImportExcel(this)">
+      </label>
+      <span id="c-xlStatus" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+    <!-- Excel preview -->
+    <div class="xl-preview" id="xlPreview">
+      <div class="xl-preview-title">📋 預覽匯入資料（請確認欄位對應正確）</div>
+      <div id="xlPreviewTable"></div>
+      <div class="xl-confirm-row">
+        <button class="conf-btn" onclick="cConfirmImport()">✅ 確認匯入</button>
+        <button class="clr-btn" style="padding:6px 12px" onclick="cancelImport()">取消</button>
+        <span id="xlPreviewCount" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
+      </div>
+    </div>
+    <!-- Draft -->
+    <div class="draft-bar">
+      <button class="draft-btn" onclick="cSaveDraft()">💾 儲存草稿</button>
+      <button class="draft-btn" onclick="toggleDraftManager()">📂 草稿管理</button>
+    </div>
+    <div id="draftManager" class="hidden" style="margin-bottom:10px;background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:10px;">
+      <div style="font-size:11px;font-weight:500;color:var(--dim);margin-bottom:6px;">已儲存的草稿</div>
+      <div id="draftList"></div>
+    </div>
+    <div class="c-tbl-wrap">
+      <table class="ct">
+        <thead><tr>
+          <th style="width:24px">#</th>
+          <th style="min-width:180px">Summary <span class="req">*</span></th>
+          <th style="min-width:120px">Description</th>
+          <th style="min-width:110px">Issue Type <span class="req">*</span></th>
+          <th style="min-width:80px">Priority</th>
+          <th style="min-width:100px">Assignee</th>
+          <th style="min-width:90px">Due Date</th>
+          <th style="min-width:120px">Labels</th>
+          <th style="min-width:100px">Parent Key</th>
+          <th style="width:36px"></th>
+        </tr></thead>
+        <tbody id="c-body"></tbody>
+      </table>
+    </div>
+    <div class="bot-bar">
+      <button class="add-btn" onclick="cAddRow()">＋ 新增一列</button>
+      <div class="add-multi"><span>批次新增</span><input type="number" id="c-multi" value="5" min="1" max="50"><span>列</span><button class="add-btn" style="padding:3px 8px" onclick="cAddMulti()">新增</button></div>
+      <span class="rc" id="c-cnt">0 列</span>
+    </div>
+    <div class="sum-bar" id="c-sumBar"><span><span class="dot dem"></span>請先填寫資料</span></div>
+    <div style="display:flex;gap:7px;">
+      <button class="sub-btn" id="c-subBtn" onclick="cSubmit()"><div class="cspin"></div><span id="c-btnLbl">✚ 建立所有 Tickets</span></button>
+      <button class="clr-btn" onclick="cClear()">清除所有列</button>
+    </div>
+  </div>
+  <div class="res-card hidden" id="c-card3">
+    <div class="res-title">建立結果</div>
+    <div class="res-stats" id="c-resStats"></div>
+    <div id="c-resList"></div>
+    <div class="act-row">
+      <button class="sec-btn" onclick="cReset()">↩ 再次建立</button>
+      <button class="sec-btn" onclick="switchTab('viewer');vFilterCreated()">📋 查看剛建立的</button>
+      <button class="sec-btn" id="c-copyKeys" onclick="copyCreatedKeys()">📋 複製 Keys</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-ov hidden" id="modalOv">
+  <div class="modal" id="modal">
+    <div class="modal-hdr">
+      <span class="modal-key" id="mKey"></span>
+      <a id="mJiraLink" href="#" target="_blank" style="font-size:10px;color:var(--acc);text-decoration:none;margin-left:4px;">↗ Jira</a>
+      <button onclick="modalNav(-1)" id="mPrev" style="margin-left:8px;padding:3px 7px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);">◀</button>
+      <button onclick="modalNav(1)" id="mNext" style="padding:3px 7px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);">▶</button>
+      <span id="mNavInfo" style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-left:4px;"></span>
+      <button onclick="showCloneModal(curModalKey)" style="margin-left:6px;padding:3px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;cursor:pointer;font-size:11px;color:var(--muted);" title="複製此 Ticket">📋 複製</button>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="mBody"><div class="mloading"><div class="v-spin"></div>載入中...</div></div>
+  </div>
+</div>
+
+<!-- Clone modal -->
+<div id="cloneModal" style="display:none;position:fixed;inset:0;background:rgba(9,30,66,.5);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--surf);border-radius:10px;padding:24px;width:min(480px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">📋 複製 Ticket</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">從 <span id="cloneSrcKey" style="color:var(--acc);font-family:'IBM Plex Mono',monospace"></span> 建立副本</div>
+    <input id="cloneSummary" placeholder="新 Summary（留空則自動加 [Copy] 前綴）" style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;font-size:13px;outline:none;margin-bottom:10px">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('cloneModal').style.display='none'" style="padding:7px 14px;border:1px solid var(--bdr);border-radius:6px;background:transparent;font-size:12px;cursor:pointer">取消</button>
+      <button onclick="doClone()" style="padding:7px 16px;background:var(--acc);border:none;border-radius:6px;color:white;font-size:12px;cursor:pointer">建立副本</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const SERVER='https://jira-viewer-amap.onrender.com';
+const JIRA_DOMAIN='viewsonic-vsi.atlassian.net';
+const TIPO={'Story':'📋','Bug':'🐛','Task':'✅','Sub-task':'↳','Epic':'⚡','大型工作':'⚡','任務':'✅','子任務':'↳','漏洞':'🐛','改善':'📋','Feature':'⭐'};
+const PCOL={'Highest':'#bf2600','High':'#de350b','Medium':'#0052cc','Low':'#00875a','Lowest':'#6b778c'};
+let cacheTtlMs=5*60*1000;
+
+// ── Tab ──
+function switchTab(t){
+  ['viewer','creator'].forEach(n=>{
+    document.getElementById('page-'+n).classList.toggle('active',n===t);
+    document.getElementById('tab-'+n).classList.toggle('active',n===t);
+  });
+  const vOnly=['refreshBtn','exportBtn','histBtn'];
+  vOnly.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=t==='viewer'?'flex':'none'; });
+  document.getElementById('tb-ts').style.display=t==='viewer'?'block':'none';
+  document.getElementById('cacheTtl').style.display=t==='viewer'?'block':'none';
+  document.getElementById('notifBtn').style.display=t==='viewer'?'flex':'none';
+}
+
+function updateCacheTtl(){
+  cacheTtlMs=parseInt(document.getElementById('cacheTtl').value)*60*1000;
+}
+
+// ══ VIEWER ══
+let vAll=[],vSortK='key',vSortA=true,vProj='',vBoard='',vEpic='',vStatCat='',vJql='';
+let selectedKeys=new Set();
+let lastCached=false;
+const visCols=new Set(['type','status','priority','assignee','reporter','labels','duedate','updated']);
+// ── New state variables ──
+let sortKeys=[{k:'key',a:true}];
+let modalList=[],modalIdx=0;
+let expandedKeys=new Set();
+let cloneSrcKey='';
+let notifRead=new Set(JSON.parse(localStorage.getItem('notif_read')||'[]'));
+let savedFilters=JSON.parse(localStorage.getItem('jira_saved_filters')||'[]');
+let drafts=JSON.parse(localStorage.getItem('jira_drafts_v2')||'[]');
+let _debounceT=null;
+
+function toggleCol(btn){
+  const col=btn.dataset.col;
+  if(visCols.has(col)){visCols.delete(col);btn.classList.remove('on');}
+  else{visCols.add(col);btn.classList.add('on');}
+  // Update th visibility
+  const th=document.querySelector(`th[data-col="${col}"]`);
+  if(th) th.style.display=visCols.has(col)?'':'none';
+  // Update all td with data-col in tbody (existing rows)
+  document.querySelectorAll(`#tbody td[data-col="${col}"]`).forEach(td=>{
+    td.style.display=visCols.has(col)?'':'none';
   });
 }
-function jiraRequest(method, apiPath, body) {
-  return new Promise((resolve, reject) => {
-    const data = body ? JSON.stringify(body) : null;
-    const opts = {
-      hostname: JIRA_DOMAIN, path: apiPath, method,
-      headers: { 'Authorization':'Basic '+AUTH, 'Accept':'application/json', ...(data?{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}:{}) }
-    };
-    const req = https.request(opts, r => {
-      let b=''; r.on('data',c=>b+=c);
-      r.on('end',()=>{ try{resolve({status:r.statusCode,body:b?JSON.parse(b):{}})}catch(e){resolve({status:r.statusCode,body:{}})} });
+
+async function vLoadProjects(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="10"><div class="state-box">← 請先選擇專案</div></td></tr>';
+  ['s-tot','s-todo','s-prog','s-done'].forEach(id=>document.getElementById(id).textContent='—');
+  try{
+    const r=await fetch(`${SERVER}/projects`);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const projects=await r.json();
+    const sel=document.getElementById('f-proj');
+    sel.innerHTML='<option value="">— 請選擇 —</option>';
+    [...projects].sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
+      const o=document.createElement('option');o.value=p.key;o.textContent=`${p.name} (${p.key})`;sel.appendChild(o);
     });
-    req.on('error', reject);
-    if(data) req.write(data);
-    req.end();
+  }catch(e){document.getElementById('f-proj').innerHTML='<option value="">載入失敗</option>';}
+}
+
+async function vOnProj(){
+  vProj=document.getElementById('f-proj').value;
+  vBoard='';vEpic='';vStatCat='';selectedKeys.clear();
+  document.getElementById('f-board').value='';
+  document.getElementById('f-epic').value='';
+  if(!vProj){
+    document.getElementById('tbody').innerHTML='<tr><td colspan="10"><div class="state-box">← 請先選擇專案</div></td></tr>';
+    ['s-tot','s-todo','s-prog','s-done'].forEach(id=>document.getElementById(id).textContent='—');
+    ['f-board','f-epic','f-stat'].forEach(id=>{ const el=document.getElementById(id); if(el){el.innerHTML='<option value="">全部</option>';} });
+    return;
+  }
+  document.getElementById('f-board').innerHTML='<option value="">載入中...</option>';
+  document.getElementById('f-epic').innerHTML='<option value="">載入中...</option>';
+  await Promise.all([vLoadBE(vProj),vLoadStatuses(vProj)]);
+  await vFetch();
+}
+
+async function vLoadBE(proj){
+  const[boards,epics]=await Promise.all([
+    fetch(`${SERVER}/boards?project=${proj}`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${SERVER}/epics?project=${proj}`).then(r=>r.json()).catch(()=>[])
+  ]);
+  const bSel=document.getElementById('f-board');
+  bSel.innerHTML='<option value="">全部看板</option>';
+  boards.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.name;bSel.appendChild(o);});
+  if(!boards.length) bSel.innerHTML='<option value="">此專案無看板</option>';
+  const eSel=document.getElementById('f-epic');
+  eSel.innerHTML='<option value="">全部 Epic</option>';
+  epics.forEach(e=>{const o=document.createElement('option');o.value=e.key;o.textContent=`${e.key} · ${e.summary}`;eSel.appendChild(o);});
+  if(!epics.length) eSel.innerHTML='<option value="">此專案無 Epic</option>';
+}
+
+async function vLoadStatuses(proj){
+  try{
+    const statuses=await fetch(`${SERVER}/statuses?project=${proj}`).then(r=>r.json()).catch(()=>[]);
+    const sel=document.getElementById('f-stat');
+    const cur=sel.value;
+    sel.innerHTML='<option value="">全部</option>';
+    statuses.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;if(s===cur)o.selected=true;sel.appendChild(o);});
+  }catch(e){}
+}
+
+async function vOnBoard(){vBoard=document.getElementById('f-board').value;vEpic='';document.getElementById('f-epic').value='';await vFetch();}
+async function vOnEpic(){vEpic=document.getElementById('f-epic').value;vBoard='';document.getElementById('f-board').value='';await vFetch();}
+async function vRunJql(){vJql=document.getElementById('f-jql').value.trim();if(vJql) await vFetch();}
+
+async function vFetch(){
+  if(!vProj&&!vJql) return;
+  const btn=document.getElementById('refreshBtn');
+  btn.disabled=true;btn.classList.add('loading');
+  const tbody=document.getElementById('tbody');
+  tbody.innerHTML='<tr><td colspan="10"><div class="state-box"><div class="v-spin"></div>連線中...</div></td></tr>';
+  document.getElementById('progWrap').style.display='block';
+  document.getElementById('progText').style.display='block';
+  document.getElementById('progBar').style.width='5%';
+  document.getElementById('progText').textContent='正在連線至 Jira...';
+  try{
+    let u=`${SERVER}/tickets?project=${vProj}`;
+    if(vBoard) u+=`&boardId=${vBoard}`;
+    if(vEpic)  u+=`&epic=${encodeURIComponent(vEpic)}`;
+    if(vJql)   u+=`&jql=${encodeURIComponent(vJql)}`;
+    document.getElementById('progBar').style.width='25%';
+    document.getElementById('progText').textContent='正在載入 Tickets...';
+    const r=await fetch(u);
+    document.getElementById('progBar').style.width='70%';
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data.error) throw new Error(data.error);
+    const issues=data.issues||[];
+    lastCached=!!data.cached;
+    document.getElementById('progBar').style.width='100%';
+    // item 2: show actual count
+    document.getElementById('progText').textContent=`✅ 載入完成：共 ${issues.length} 筆${lastCached?' (快取)':'（即時）'}`;
+    document.getElementById('cacheInfo').textContent=lastCached?'⚡ 快取':'🔄 即時';
+
+    const fmtDate=s=>s?s.slice(0,10):'—';
+    vAll=issues.map(i=>({
+      key:i.key,url:`https://${JIRA_DOMAIN}/browse/${i.key}`,
+      summary:i.fields.summary||'',
+      status:i.fields.status?.name||'',
+      statusCat:i.fields.status?.statusCategory?.key||'',
+      type:i.fields.issuetype?.name||'',
+      priority:i.fields.priority?.name||'',
+      assignee:i.fields.assignee?.displayName||'',
+      reporter:i.fields.reporter?.displayName||'',
+      updated:fmtDate(i.fields.updated),
+      created:fmtDate(i.fields.created),
+      duedate:fmtDate(i.fields.duedate),
+      labels:i.fields.labels||[],
+    }));
+
+    // Populate status filter
+    const sSel=document.getElementById('f-stat');
+    const curS=sSel.value;
+    const statuses=[...new Set(vAll.map(i=>i.status).filter(Boolean))].sort();
+    sSel.innerHTML='<option value="">全部</option>'+statuses.map(s=>`<option value="${s}" ${s===curS?'selected':''}>${s}</option>`).join('');
+    // Populate assignee filter
+    const aSel=document.getElementById('f-asgn');
+    const curA=aSel.value;
+    const assignees=[...new Set(vAll.map(i=>i.assignee).filter(Boolean))].sort();
+    aSel.innerHTML='<option value="">全部</option>'+assignees.map(a=>`<option value="${a}" ${a===curA?'selected':''}>${a}</option>`).join('');
+
+    vUpdateStats();
+    vApply();
+    vUpdateSyncTime();
+    vCheckNotif();
+    setTimeout(()=>{document.getElementById('progWrap').style.display='none';document.getElementById('progText').style.display='none';},2500);
+  }catch(err){
+    let msg=err.message;
+    if(msg.includes('401')) msg='❌ 認證失敗：Token 可能已過期，請聯絡管理員';
+    else if(msg.includes('403')) msg='❌ 權限不足：無法存取此專案';
+    else if(msg.includes('404')) msg='❌ 找不到專案：請確認專案代碼正確';
+    else if(msg.includes('Failed to fetch')||msg.includes('NetworkError')) msg='❌ 無法連線：請確認網路或 Render 服務是否正常';
+    else msg=`❌ 載入失敗：${msg}`;
+    tbody.innerHTML=`<tr><td colspan="10"><div class="state-box">${msg}</div></td></tr>`;
+    document.getElementById('progWrap').style.display='none';
+    document.getElementById('progText').style.display='none';
+  }
+  btn.disabled=false;btn.classList.remove('loading');
+}
+
+const today=new Date().toISOString().slice(0,10);
+const soon=new Date(Date.now()+7*24*60*60*1000).toISOString().slice(0,10);
+
+function vUpdateStats(){
+  const t=vAll.length,p=vAll.filter(i=>i.statusCat==='indeterminate').length,d=vAll.filter(i=>i.statusCat==='done').length;
+  const od=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done').length;
+  document.getElementById('s-tot').textContent=t;
+  document.getElementById('s-todo').textContent=t-p-d;
+  document.getElementById('s-prog').textContent=p;
+  document.getElementById('s-done').textContent=d;
+  const odEl=document.getElementById('s-od');if(odEl) odEl.textContent=od;
+}
+
+function vApplyDebounced(){clearTimeout(_debounceT);_debounceT=setTimeout(vApply,300);}
+
+function vApply(){
+  const kw=document.getElementById('f-kw').value.trim().toLowerCase();
+  const stat=document.getElementById('f-stat').value;
+  const asgn=document.getElementById('f-asgn').value;
+  const type=document.getElementById('f-type').value;
+  const date=document.getElementById('f-date').value;
+  const due=document.getElementById('f-due').value;
+  let filtered=vAll.filter(i=>{
+    if(kw&&!i.key.toLowerCase().includes(kw)&&!i.summary.toLowerCase().includes(kw)) return false;
+    if(stat&&i.status!==stat) return false;
+    if(asgn&&i.assignee!==asgn) return false;
+    if(type&&i.type!==type) return false;
+    if(date&&i.updated!==date) return false;
+    if(due&&(i.duedate==='—'||i.duedate!==due)) return false;
+    if(vStatCat==='overdue'&&!(i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done')) return false;
+    else if(vStatCat&&vStatCat!=='overdue'&&i.statusCat!==vStatCat) return false;
+    return true;
   });
+  // Update type filter
+  const tSel=document.getElementById('f-type');
+  const curT=tSel.value;
+  const types=[...new Set(vAll.map(i=>i.type).filter(Boolean))].sort();
+  tSel.innerHTML='<option value="">全部</option>'+types.map(t=>`<option value="${t}" ${t===curT?'selected':''}>${TIPO[t]||'📄'} ${t}</option>`).join('');
+  // Multi-sort
+  filtered.sort((a,b)=>{for(const {k,a:asc} of sortKeys){const r=vSortCmp(a,b,k,asc);if(r!==0)return r;}return 0;});
+  vRenderTable(filtered);
+  vRenderChips(kw,stat,asgn,type,date,due);
+  document.getElementById('footerText').textContent=filtered.length+' / '+vAll.length+' 筆 tickets';
+  renderSavedFilters();
+  syncUrlState();
 }
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    let b=''; req.on('data',c=>b+=c);
-    req.on('end',()=>{ try{resolve(JSON.parse(b))}catch(e){reject(e)} });
-    req.on('error',reject);
+
+function vSortCmp(a,b,key,asc){
+  if(key==='key'){const na=parseInt(a.key.replace(/^[^-]+-/,''))||0,nb=parseInt(b.key.replace(/^[^-]+-/,''))||0;return asc?na-nb:nb-na;}
+  const va=a[key]||'',vb=b[key]||'';
+  return asc?va.localeCompare(vb):vb.localeCompare(va);
+}
+
+function bCls(cat){return cat==='indeterminate'?'b-prog':cat==='done'?'b-done':'b-todo';}
+function fmtD(d){return d&&d!=='—'?`<span>${d.slice(0,4)}</span><br><span>${d.slice(5)}</span>`:'<span style="color:#c1c7d0">—</span>';}
+
+function vRenderTable(data){
+  const tbody=document.getElementById('tbody');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="12"><div class="state-box">沒有符合條件的 ticket</div></td></tr>';return;}
+  tbody.innerHTML=data.map(i=>{
+    const od=i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done';
+    const isSel=selectedKeys.has(i.key);
+    const pc=PCOL[i.priority]||'var(--muted)';
+    const lblHtml=(i.labels||[]).slice(0,2).map(l=>`<span style="display:inline-block;padding:1px 5px;background:#f4f5f7;border:1px solid var(--bdr);border-radius:3px;font-size:9px;color:var(--dim);margin:1px">${l}</span>`).join('')+(i.labels?.length>2?`<span style="font-size:9px;color:var(--muted)">+${i.labels.length-2}</span>`:'');
+    return `<tr id="tr-${i.key}" onclick="openModal('${i.key}')" class="${isSel?'sel-row':''}">
+      <td class="td-cb" onclick="event.stopPropagation()"><input type="checkbox" ${isSel?'checked':''} onchange="toggleSel('${i.key}',this)"></td>
+      <td style="padding:6px 2px;width:20px"><span style="font-size:10px;color:var(--muted);cursor:pointer;user-select:none" onclick="event.stopPropagation();toggleExpand('${i.key}')" id="eb-${i.key}">▶</span></td>
+      <td data-col="type" style="font-size:10px;color:var(--dim);white-space:nowrap;${visCols.has('type')?'':'display:none'}">${TIPO[i.type]||'📄'} ${i.type}</td>
+      <td class="td-key" onclick="event.stopPropagation()"><a href="${i.url}" target="_blank">${i.key}</a></td>
+      <td class="td-sum" title="${i.summary.replace(/"/g,'&quot;')}">
+        <span class="sum-text">${i.summary.replace(/</g,'&lt;')}</span>
+        <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditSum('${i.key}',this.closest('td'))" title="編輯">✏️</span>
+      </td>
+      <td data-col="status" style="${visCols.has('status')?'':'display:none'}">
+        <span class="badge ${bCls(i.statusCat)}">${i.status}</span>
+        <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditStatus('${i.key}',this)" title="改狀態">✏️</span>
+      </td>
+      <td data-col="priority" style="font-size:10px;color:${pc};white-space:nowrap;${visCols.has('priority')?'':'display:none'}">${i.priority||'—'}</td>
+      <td data-col="assignee" class="td-per" title="${i.assignee}" style="${visCols.has('assignee')?'':'display:none'}">
+        ${i.assignee||'未指派'}
+        <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditAssignee('${i.key}',this)" title="改負責人">✏️</span>
+      </td>
+      <td data-col="reporter" class="td-per" title="${i.reporter}" style="${visCols.has('reporter')?'':'display:none'}">${i.reporter||'—'}</td>
+      <td data-col="labels" style="font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${visCols.has('labels')?'':'display:none'}" title="${(i.labels||[]).join(', ')}">${lblHtml||'—'}</td>
+      <td data-col="duedate" class="td-dt${od?' od':''}" style="${visCols.has('duedate')?'':'display:none'}">
+        ${fmtD(i.duedate)}${od?' ⚠':''}
+        <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditDue('${i.key}',this)" title="改截止日">✏️</span>
+      </td>
+      <td data-col="updated" class="td-dt" style="${visCols.has('updated')?'':'display:none'}">${fmtD(i.updated)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function vRenderChips(kw,stat,asgn,type,date,due){
+  const chips=document.getElementById('chips');chips.innerHTML='';
+  const add=(l,c)=>chips.innerHTML+=`<span class="chip">${l}<span class="chip-x" onclick="${c}">✕</span></span>`;
+  if(kw)   add('關鍵字：'+kw,   "document.getElementById('f-kw').value='';vApply()");
+  if(stat) add('Status：'+stat, "document.getElementById('f-stat').value='';vApply()");
+  if(asgn) add('負責人：'+asgn, "document.getElementById('f-asgn').value='';vApply()");
+  if(type) add('類型：'+type,   "document.getElementById('f-type').value='';vApply()");
+  if(date) add('更新：'+date,   "document.getElementById('f-date').value='';vApply()");
+  if(due)  add('截止：'+due,    "document.getElementById('f-due').value='';vApply()");
+  if(vStatCat) add('狀態分類：'+vStatCat,"vStatF('')");
+  if(vJql) add('JQL','vJql="";document.getElementById("f-jql").value="";vFetch()');
+}
+
+function vSort(key){
+  const existing=sortKeys.findIndex(s=>s.k===key);
+  if(existing===0){sortKeys[0].a=!sortKeys[0].a;}
+  else if(existing>0){sortKeys.splice(existing,1);sortKeys.unshift({k:key,a:true});}
+  else{sortKeys.unshift({k:key,a:true});if(sortKeys.length>3)sortKeys.pop();}
+  document.querySelectorAll('table.vt th').forEach(th=>{th.classList.remove('sorted');const sa=th.querySelector('.sa');if(sa)sa.textContent='↕';const sb=th.querySelector('.sort-badge');if(sb)sb.remove();});
+  sortKeys.forEach((s,idx)=>{
+    const th=document.getElementById('th-'+s.k);if(!th)return;
+    th.classList.add('sorted');
+    const sa=th.querySelector('.sa');if(sa)sa.textContent=s.a?'↑':'↓';
+    if(sortKeys.length>1)th.insertAdjacentHTML('beforeend',`<span class="sort-badge" style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:var(--acc);color:white;border-radius:50%;font-size:8px;font-weight:700;margin-left:2px">${idx+1}</span>`);
   });
-}
-function json(res, data, status=200) {
-  res.writeHead(status, {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});
-  res.end(JSON.stringify(data));
+  vApply();
 }
 
-const CACHE_TTL = { projects:10*60*1000, boards:10*60*1000, epics:5*60*1000, meta:5*60*1000, statuses:10*60*1000, tickets:5*60*1000, issue:2*60*1000 };
-
-async function fetchAllAssignees(project) {
-  let all=[], startAt=0;
-  while(true) {
-    const data = await jiraFetch(`/rest/api/3/user/assignable/search?project=${project}&maxResults=50&startAt=${startAt}`).catch(()=>[]);
-    const arr = Array.isArray(data)?data:[];
-    all = all.concat(arr);
-    if(arr.length<50) break;
-    startAt+=50; if(startAt>500) break;
+function vStatF(cat){
+  vStatCat=vStatCat===cat?'':cat;
+  document.querySelectorAll('.stat').forEach(s=>s.classList.remove('af'));
+  const odEl=document.getElementById('stat-od');if(odEl)odEl.classList.remove('af');
+  if(vStatCat){
+    const map={todo:'stat-todo',indeterminate:'stat-prog',done:'stat-done',overdue:'stat-od'};
+    document.getElementById(map[vStatCat]||'stat-all')?.classList.add('af');
   }
-  return all;
+  vApply();
 }
 
-const server = http.createServer(async (req, res) => {
-  const parsed = url.parse(req.url, true);
-  const p = parsed.pathname;
+function vReset(){
+  ['f-kw','f-stat','f-asgn','f-type','f-date','f-due','f-jql'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('f-board').value='';document.getElementById('f-epic').value='';
+  vBoard='';vEpic='';vStatCat='';vJql='';sortKeys=[{k:'key',a:true}];
+  selectedKeys.clear();
+  document.querySelectorAll('.stat').forEach(s=>s.classList.remove('af'));
+  const odEl=document.getElementById('stat-od');if(odEl)odEl.classList.remove('af');
+  vFetch();
+}
 
-  res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type');
-  if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+function vUpdateSyncTime(){
+  const ts=document.getElementById('tb-ts');
+  const hms=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const mins=Math.floor(cacheTtlMs/60000);
+  let c=Math.floor(cacheTtlMs/1000);
+  if(window._ct) clearInterval(window._ct);
+  ts.textContent=`上次同步：${hms}　下次：${mins}:00`;
+  window._ct=setInterval(()=>{
+    c--;
+    if(c<=0){clearInterval(window._ct);ts.textContent=`上次同步：${hms}`;return;}
+    ts.textContent=`上次同步：${hms}　下次：${Math.floor(c/60)}:${String(c%60).padStart(2,'0')}`;
+  },1000);
+}
 
-  // /ping
-  if(p==='/ping'){json(res,{ok:true,ts:Date.now()});return;}
+// Export
+function vExport(){
+  if(!vAll.length){alert('請先載入 tickets');return;}
+  const kw=document.getElementById('f-kw').value.trim().toLowerCase();
+  const stat=document.getElementById('f-stat').value;
+  const asgn=document.getElementById('f-asgn').value;
+  const type=document.getElementById('f-type').value;
+  const filtered=vAll.filter(i=>{
+    if(kw&&!i.key.toLowerCase().includes(kw)&&!i.summary.toLowerCase().includes(kw)) return false;
+    if(stat&&i.status!==stat) return false;
+    if(asgn&&i.assignee!==asgn) return false;
+    if(type&&i.type!==type) return false;
+    if(vStatCat&&i.statusCat!==vStatCat) return false;
+    return true;
+  });
+  const rows=[['Key','Summary','Status','Type','Priority','Assignee','Reporter','Due Date','Updated','Labels','URL']];
+  filtered.forEach(i=>rows.push([i.key,i.summary,i.status,i.type,i.priority,i.assignee,i.reporter,i.duedate,i.updated,(i.labels||[]).join(','),i.url]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Tickets');
+  XLSX.writeFile(wb,`jira_${vProj||'export'}_${today}.xlsx`);
+}
 
-  // /projects
-  if(p==='/projects'&&req.method==='GET'){
-    const c=cacheGet('projects',CACHE_TTL.projects);
-    if(c){json(res,c);return;}
-    try{
-      const d=await jiraFetch('/rest/api/3/project?maxResults=200&orderBy=name');
-      const projects=(Array.isArray(d)?d:(d.values||[])).map(p=>({key:p.key,name:p.name,id:p.id}));
-      cacheSet('projects',projects); json(res,projects);
-    }catch(e){json(res,{error:e.message},500);}
-    return;
+// ── Batch select (item 12) ──
+let vMeta={assignees:[],transitions:[]};
+
+function toggleSel(key,cb){
+  if(cb.checked) selectedKeys.add(key); else selectedKeys.delete(key);
+  document.getElementById('tbody').querySelectorAll('tr').forEach(tr=>{
+    const k=tr.querySelector('.td-key a')?.textContent;
+    if(k) tr.classList.toggle('sel-row',selectedKeys.has(k));
+  });
+  updateBatchBar();
+}
+
+function toggleSelAll(cb){
+  const rows=document.getElementById('tbody').querySelectorAll('tr');
+  rows.forEach(tr=>{
+    const k=tr.querySelector('.td-key a')?.textContent;
+    if(!k) return;
+    const chk=tr.querySelector('input[type=checkbox]');
+    if(chk) chk.checked=cb.checked;
+    if(cb.checked) selectedKeys.add(k); else selectedKeys.delete(k);
+    tr.classList.toggle('sel-row',cb.checked);
+  });
+  updateBatchBar();
+}
+
+function clearSelect(){
+  selectedKeys.clear();
+  document.getElementById('tbody').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+  document.getElementById('tbody').querySelectorAll('tr').forEach(tr=>tr.classList.remove('sel-row'));
+  document.getElementById('selAll').checked=false;
+  updateBatchBar();
+}
+
+function updateBatchBar(){
+  const bar=document.getElementById('batchBar');
+  const n=selectedKeys.size;
+  bar.classList.toggle('show',n>0);
+  document.getElementById('batchCount').textContent=`${n} 筆已選`;
+}
+
+document.getElementById('batchField').addEventListener('change',async function(){
+  const field=this.value;
+  const valSel=document.getElementById('batchValue');
+  valSel.style.display=field?'block':'none';
+  valSel.innerHTML='<option value="">請選擇...</option>';
+  if(field==='assignee'){
+    if(!vMeta.assignees.length&&vProj){
+      const m=await fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>({assignees:[]}));
+      vMeta.assignees=m.assignees||[];
+    }
+    vMeta.assignees.forEach(u=>{const o=document.createElement('option');o.value=u.accountId;o.textContent=u.displayName;valSel.appendChild(o);});
+  } else if(field==='status'){
+    if(!vMeta.transitions.length&&selectedKeys.size>0){
+      const key=[...selectedKeys][0];
+      const trans=await fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]);
+      vMeta.transitions=trans;
+    }
+    vMeta.transitions.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;valSel.appendChild(o);});
   }
-
-  // /tickets
-  if(p==='/tickets'&&req.method==='GET'){
-    const{project='OK',boardId='',epic='',jql:customJql=''}=parsed.query;
-    const ck=`tickets:${project}:${boardId}:${epic}:${customJql}`;
-    const c=cacheGet(ck,CACHE_TTL.tickets);
-    if(c){json(res,{issues:c,total:c.length,cached:true});return;}
-    const fields='summary,status,priority,assignee,issuetype,updated,created,duedate,reporter,labels,description';
-    try{
-      let all=[];
-      if(boardId&&!epic){
-        let startAt=0,total=null;
-        while(true){
-          const d=await jiraFetch(`/rest/agile/1.0/board/${boardId}/issue?fields=${fields}&maxResults=100&startAt=${startAt}`);
-          const batch=d.issues||[];
-          all=all.concat(batch);
-          if(total===null) total=d.total||0;
-          startAt+=batch.length;
-          if(!batch.length||startAt>=total) break;
-        }
-      } else {
-        let jqlParts=customJql?[customJql]:[`project=${project}`];
-        if(epic&&!customJql) jqlParts.push(`"Epic Link"="${epic}" OR parentEpic="${epic}" OR parent="${epic}"`);
-        const jql=encodeURIComponent(jqlParts.join(' AND ')+' ORDER BY key ASC');
-        let pageToken='';
-        while(true){
-          let apiPath=`/rest/api/3/search/jql?jql=${jql}&fields=${fields}&maxResults=100`;
-          if(pageToken) apiPath+=`&nextPageToken=${encodeURIComponent(pageToken)}`;
-          const d=await jiraFetch(apiPath);
-          const batch=d.issues||[];
-          all=all.concat(batch);
-          if(!d.nextPageToken||d.isLast) break;
-          pageToken=d.nextPageToken;
-        }
-      }
-      cacheSet(ck,all);
-      json(res,{issues:all,total:all.length,cached:false});
-    }catch(e){json(res,{error:e.message,issues:[]},500);}
-    return;
-  }
-
-  // /issue/:key GET
-  if(req.method==='GET'&&p.startsWith('/issue/')&&!p.includes('/transition')&&!p.includes('/comment')&&!p.includes('/subtask')){
-    const key=p.replace('/issue/','');
-    const c=cacheGet(`issue:${key}`,CACHE_TTL.issue);
-    if(c){json(res,c);return;}
-    try{
-      const d=await jiraFetch(`/rest/api/3/issue/${key}?fields=summary,description,status,assignee,reporter,issuetype,priority,duedate,updated,created,comment,subtasks,parent,issuelinks,labels`);
-      cacheSet(`issue:${key}`,d); json(res,d);
-    }catch(e){json(res,{error:e.message},500);}
-    return;
-  }
-
-  // /issue/:key PUT - update fields
-  if(req.method==='PUT'&&p.startsWith('/issue/')&&!p.includes('/'+'transition')){
-    const key=p.replace('/issue/','');
-    try{
-      const body=await readBody(req);
-      const fields={};
-      if(body.summary!==undefined)    fields.summary=body.summary;
-      if(body.description!==undefined&&body.description!==null) fields.description={type:'doc',version:1,content:[{type:'paragraph',content:[{type:'text',text:body.description}]}]};
-      if(body.assignee!==undefined)   fields.assignee=body.assignee?{accountId:body.assignee}:null;
-      if(body.duedate!==undefined)    fields.duedate=body.duedate||null;
-      if(body.priority!==undefined&&body.priority)   fields.priority={name:body.priority};
-      if(body.labels!==undefined)     fields.labels=body.labels;
-      const r=await jiraRequest('PUT',`/rest/api/3/issue/${key}`,{fields});
-      cacheDel(`issue:${key}`); cacheDel('tickets:');
-      json(res,{ok:r.status===204},r.status===204?200:r.status);
-    }catch(e){json(res,{error:e.message},500);}
-    return;
-  }
-
-  // /issue/:key/transition POST - change status
-  if(req.method==='POST'&&p.match(/^\/issue\/[^/]+\/transition$/)){
-    const key=p.split('/')[2];
-    try{
-      const body=await readBody(req);
-      const trans=await jiraFetch(`/rest/api/3/issue/${key}/transitions`);
-      const transitions=trans.transitions||[];
-      const target=transitions.find(t=>t.id===body.transitionId||t.name.toLowerCase()===String(body.status||'').toLowerCase());
-      if(!target){json(res,{error:'Transition not found',available:transitions.map(t=>({id:t.id,name:t.name}))},400);return;}
-      const r=await jiraRequest('POST',`/rest/api/3/issue/${key}/transitions`,{transition:{id:target.id}});
-      cacheDel(`issue:${key}`); cacheDel('tickets:');
-      json(res,{ok:r.status===204,transitions:transitions.map(t=>({id:t.id,name:t.name}))});
-    }catch(e){json(res,{error:e.message},500);}
-    return;
-  }
-
-  // /issue/:key/comment POST - add comment (item 8)
-  if(req.method==='POST'&&p.match(/^\/issue\/[^/]+\/comment$/)){
-    const key=p.split('/')[2];
-    try{
-      const body=await readBody(req);
-      const r=await jiraRequest('POST',`/rest/api/3/issue/${key}/comment`,{
-        body:{type:'doc',version:1,content:[{type:'paragraph',content:[{type:'text',text:body.text}]}]}
-      });
-      cacheDel(`issue:${key}`);
-      json(res,{ok:r.status===201||r.status===200},r.status===201||r.status===200?200:r.status);
-    }catch(e){json(res,{error:e.message},500);}
-    return;
-  }
-
-  // /issue/:key/subtask POST - create subtask (item 9)
-  if(req.method==='POST'&&p.match(/^\/issue\/[^/]+\/subtask$/)){
-    const parentKey=p.split('/')[2];
-    try{
-      const body=await readBody(req);
-      const r=await jiraRequest('POST','/rest/api/3/issue',{fields:{
-        project:{key:body.project},
-        summary:body.summary,
-        issuetype:{name:'Sub-task'},
-        parent:{key:parentKey},
-        ...(body.assignee?{assignee:{accountId:body.assignee}}:{})
-      }});
-      cacheDel(`issue:${parentKey}`); cacheDel('tickets:');
-      json(res,{ok:!!r.body?.key,key:r.body?.key});
-    }catch(e){json(res,{error:e.message},500);}
-    return;
-  }
-
-  // /transitions/:key
-  if(req.method==='GET'&&p.startsWith('/transitions/')){
-    const key=p.replace('/transitions/','');
-    try{
-      const d=await jiraFetch(`/rest/api/3/issue/${key}/transitions`);
-      json(res,(d.transitions||[]).map(t=>({id:t.id,name:t.name})));
-    }catch(e){json(res,[]);}
-    return;
-  }
-
-  // /boards
-  if(p==='/boards'&&req.method==='GET'){
-    const{project='OK'}=parsed.query;
-    const ck=`boards:${project}`;
-    const c=cacheGet(ck,CACHE_TTL.boards);
-    if(c){json(res,c);return;}
-    try{
-      const d=await jiraFetch(`/rest/agile/1.0/board?projectKeyOrId=${project}&maxResults=50`);
-      const boards=(d.values||[]).map(b=>({id:b.id,name:b.name,type:b.type})).sort((a,b)=>a.name.localeCompare(b.name));
-      cacheSet(ck,boards); json(res,boards);
-    }catch(e){json(res,[]);}
-    return;
-  }
-
-  // /epics
-  if(p==='/epics'&&req.method==='GET'){
-    const{project='OK'}=parsed.query;
-    const ck=`epics:${project}`;
-    const c=cacheGet(ck,CACHE_TTL.epics);
-    if(c){json(res,c);return;}
-    try{
-      const jql=encodeURIComponent(`project=${project} AND issuetype=Epic ORDER BY summary ASC`);
-      const d=await jiraFetch(`/rest/api/3/search/jql?jql=${jql}&fields=summary&maxResults=100`);
-      const epics=(d.issues||[]).map(i=>({key:i.key,summary:i.fields.summary||i.key}));
-      cacheSet(ck,epics); json(res,epics);
-    }catch(e){json(res,[]);}
-    return;
-  }
-
-  // /statuses
-  if(p==='/statuses'&&req.method==='GET'){
-    const{project='OK'}=parsed.query;
-    const ck=`statuses:${project}`;
-    const c=cacheGet(ck,CACHE_TTL.statuses);
-    if(c){json(res,c);return;}
-    try{
-      const d=await jiraFetch(`/rest/api/3/project/${project}/statuses`);
-      const statuses=[...new Set((Array.isArray(d)?d:[]).flatMap(t=>(t.statuses||[]).map(s=>s.name)))].sort();
-      cacheSet(ck,statuses); json(res,statuses);
-    }catch(e){json(res,[]);}
-    return;
-  }
-
-  // /meta
-  if(p==='/meta'&&req.method==='GET'){
-    const{project='OK'}=parsed.query;
-    const ck=`meta:${project}`;
-    const c=cacheGet(ck,CACHE_TTL.meta);
-    if(c){json(res,c);return;}
-    try{
-      const[meta,prios,assignees]=await Promise.all([
-        jiraFetch(`/rest/api/3/issue/createmeta?projectKeys=${project}&expand=projects.issuetypes`).catch(()=>({})),
-        jiraFetch('/rest/api/3/priority').catch(()=>[]),
-        fetchAllAssignees(project)
-      ]);
-      const proj=(meta.projects||[])[0]||{};
-      const sort=(arr,k)=>[...arr].sort((a,b)=>a[k].localeCompare(b[k]));
-      const result={
-        issueTypes:sort((proj.issuetypes||[]).map(t=>({id:t.id,name:t.name})),'name'),
-        priorities:(Array.isArray(prios)?prios:[]).map(p=>({id:p.id,name:p.name})),
-        assignees:sort((Array.isArray(assignees)?assignees:[]).map(u=>({accountId:u.accountId,displayName:u.displayName})),'displayName')
-      };
-      cacheSet(ck,result); json(res,result);
-    }catch(e){json(res,{error:e.message},500);}
-    return;
-  }
-
-  // /labels?project=OK - get labels (item 13)
-  if(p==='/labels'&&req.method==='GET'){
-    const{project='OK'}=parsed.query;
-    const ck=`labels:${project}`;
-    const c=cacheGet(ck,10*60*1000);
-    if(c){json(res,c);return;}
-    try{
-      const d=await jiraFetch(`/rest/api/3/label?maxResults=200`);
-      const labels=(d.values||[]).sort();
-      cacheSet(ck,labels); json(res,labels);
-    }catch(e){json(res,[]);}
-    return;
-  }
-
-  // /sprints?boardId=123 - get sprints for board (item 15)
-  if(p==='/sprints'&&req.method==='GET'){
-    const{boardId=''}=parsed.query;
-    if(!boardId){json(res,[]);return;}
-    const ck=`sprints:${boardId}`;
-    const c=cacheGet(ck,10*60*1000);
-    if(c){json(res,c);return;}
-    try{
-      const d=await jiraFetch(`/rest/agile/1.0/board/${boardId}/sprint?state=active,future&maxResults=20`);
-      const sprints=(d.values||[]).map(s=>({id:s.id,name:s.name,state:s.state}));
-      cacheSet(ck,sprints); json(res,sprints);
-    }catch(e){json(res,[]);}
-    return;
-  }
-
-  // /clone - clone a ticket (item 16)
-  if(p==='/clone'&&req.method==='POST'){
-    try{
-      const{key,summary,project}=await readBody(req);
-      // Fetch original
-      const orig=await jiraFetch(`/rest/api/3/issue/${key}?fields=summary,description,issuetype,priority,assignee,duedate,labels`);
-      const f=orig.fields||{};
-      const fields={
-        project:{key:project||f.project?.key||'OK'},
-        summary:summary||(f.summary?`[Copy] ${f.summary}`:'Copy'),
-        issuetype:{id:f.issuetype?.id||''},
-      };
-      if(f.description) fields.description=f.description;
-      if(f.priority)    fields.priority={id:f.priority.id};
-      if(f.assignee)    fields.assignee={accountId:f.assignee.accountId};
-      if(f.duedate)     fields.duedate=f.duedate;
-      if(f.labels?.length) fields.labels=f.labels;
-      const r=await jiraRequest('POST','/rest/api/3/issue',{fields});
-      cacheDel('tickets:');
-      json(res,{ok:!!r.body?.key,key:r.body?.key,error:r.body?.errors});
-    }catch(e){json(res,{error:e.message},500);}
-    return;
-  }
-
-  // /create-batch
-  if(p==='/create-batch'&&req.method==='POST'){
-    try{
-      const{issues}=await readBody(req);
-      if(!Array.isArray(issues)||!issues.length){json(res,{error:'No issues'},400);return;}
-      const issueList=issues.map(({project,summary,description,issueType,priority,assignee,duedate,epic,parentKey,labels,sprintId})=>{
-        const fields={project:{key:project||'OK'},summary,issuetype:{id:issueType}};
-        if(priority)    fields.priority={id:priority};
-        if(description) fields.description={type:'doc',version:1,content:[{type:'paragraph',content:[{type:'text',text:description}]}]};
-        if(assignee)    fields.assignee={accountId:assignee};
-        if(duedate)     fields.duedate=duedate;
-        if(epic)        fields['customfield_10014']=epic;
-        if(parentKey)   fields.parent={key:parentKey};
-        if(labels&&labels.length) fields.labels=labels;
-        if(sprintId)    fields['customfield_10020']={id:parseInt(sprintId)};
-        return{fields};
-      });
-      const BATCH=50;
-      const result={issues:[],errors:[]};
-      for(let i=0;i<issueList.length;i+=BATCH){
-        const batch=issueList.slice(i,i+BATCH);
-        const data=JSON.stringify({issueUpdates:batch});
-        const opts={hostname:JIRA_DOMAIN,path:'/rest/api/3/issue/bulk',method:'POST',headers:{'Authorization':'Basic '+AUTH,'Accept':'application/json','Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}};
-        const r=await new Promise(resolve=>{
-          const req=https.request(opts,resp=>{let b='';resp.on('data',c=>b+=c);resp.on('end',()=>{try{resolve(JSON.parse(b))}catch(e){resolve({issues:[],errors:[]})}});});
-          req.on('error',()=>resolve({issues:[],errors:[]})); req.write(data); req.end();
-        });
-        result.issues.push(...(r.issues||[]));
-        result.errors.push(...(r.errors||[]));
-      }
-      cacheDel('tickets:');
-      json(res,result);
-    }catch(e){json(res,{error:e.message},400);}
-    return;
-  }
-
-  // serve index.html
-  if(p==='/'||p==='/index.html'){
-    fs.readFile(path.join(__dirname,'index.html'),(err,data)=>{
-      if(err){res.writeHead(404);res.end('Not found');return;}
-      res.writeHead(200,{'Content-Type':'text/html;charset=utf-8'}); res.end(data);
-    });
-    return;
-  }
-
-  res.writeHead(404); res.end('Not found');
 });
 
-server.listen(PORT,()=>console.log(`✅ JIRA Tools on port ${PORT}`));
+async function applyBatch(){
+  const field=document.getElementById('batchField').value;
+  const value=document.getElementById('batchValue').value;
+  if(!field||!value||!selectedKeys.size) return;
+  if(!confirm(`確定要修改 ${selectedKeys.size} 筆 tickets 的 ${field}？`)) return;
+  let ok=0,fail=0;
+  for(const key of selectedKeys){
+    try{
+      if(field==='assignee'){
+        const r=await fetch(`${SERVER}/issue/${key}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignee:value})});
+        if(r.ok||(await r.json()).ok) ok++; else fail++;
+      } else if(field==='status'){
+        const r=await fetch(`${SERVER}/issue/${key}/transition`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transitionId:value})});
+        const d=await r.json();
+        if(d.ok) ok++; else fail++;
+      }
+    }catch(e){fail++;}
+  }
+  addHistory(`批次修改 ${field}`,`${ok} 筆成功${fail>0?`，${fail} 筆失敗`:''}`,null);
+  alert(`✅ 完成：${ok} 筆成功${fail>0?`，${fail} 筆失敗`:''}。`);
+  clearSelect();
+  await vFetch();
+}
+
+// ── Notification (item 20) ──
+function vCheckNotif(){
+  const dueSoon=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate>=today&&i.duedate<=soon&&i.statusCat!=='done');
+  const overdue=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done');
+  const all=[...overdue,...dueSoon];
+  const unread=all.filter(i=>!notifRead.has(i.key));
+  const badge=document.getElementById('notifBadge');
+  badge.textContent=unread.length||'';
+  badge.classList.toggle('show',unread.length>0);
+  const list=document.getElementById('notifList');
+  if(!all.length){list.innerHTML='<div style="padding:12px 14px;font-size:12px;color:var(--muted)">沒有即將到期的 tickets 🎉</div>';return;}
+  list.innerHTML=all.map(i=>`<div class="notif-item" style="${notifRead.has(i.key)?'opacity:.5':''}">
+    <div style="cursor:pointer" onclick="markNotifRead('${i.key}');document.getElementById('notifPanel').classList.remove('show');openModal('${i.key}')">
+      <div><span class="notif-key">${i.key}</span><span style="font-size:11px;color:var(--dim)">${i.summary.slice(0,50)}${i.summary.length>50?'...':''}</span></div>
+      <div class="notif-due">${i.duedate<today?'⚠ 已過期 '+i.duedate:'🔔 到期 '+i.duedate}</div>
+    </div>
+    ${!notifRead.has(i.key)?`<button onclick="event.stopPropagation();markNotifRead('${i.key}')" style="padding:2px 6px;border:1px solid var(--bdr);border-radius:3px;font-size:10px;background:transparent;cursor:pointer;color:var(--muted);margin-top:3px">已讀</button>`:''}
+  </div>`).join('');
+}
+function markNotifRead(key){
+  notifRead.add(key);
+  localStorage.setItem('notif_read',JSON.stringify([...notifRead]));
+  vCheckNotif();
+}
+function markAllNotifRead(){
+  vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.statusCat!=='done').forEach(i=>notifRead.add(i.key));
+  localStorage.setItem('notif_read',JSON.stringify([...notifRead]));
+  vCheckNotif();
+}
+
+function toggleNotif(){
+  const panel=document.getElementById('notifPanel');
+  panel.classList.toggle('show');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#notifBtn')&&!e.target.closest('#notifPanel')) document.getElementById('notifPanel').classList.remove('show');
+});
+
+// ── History (item 23) ──
+let history=JSON.parse(localStorage.getItem('jira_history')||'[]');
+function addHistory(action,detail,key){
+  history.unshift({action,detail,key,time:new Date().toLocaleString('zh-TW')});
+  if(history.length>50) history=history.slice(0,50);
+  localStorage.setItem('jira_history',JSON.stringify(history));
+  renderHistory();
+}
+function renderHistory(){
+  const list=document.getElementById('histList');
+  if(!history.length){list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 0">尚無操作記錄</div>';return;}
+  list.innerHTML=history.slice(0,20).map(h=>`<div class="hist-item">
+    ${h.key?`<span class="hist-key">${h.key}</span>`:''}${h.action}：${h.detail}
+    <span class="hist-time">${h.time}</span>
+  </div>`).join('');
+}
+function toggleHist(){document.getElementById('histPanel').classList.toggle('show');renderHistory();}
+function clearHistory(){history=[];localStorage.removeItem('jira_history');renderHistory();}
+
+// ── Modal ──
+let curModalKey='';
+function openModal(key){
+  modalList=[...document.getElementById('tbody').querySelectorAll('.td-key a')].map(a=>a.textContent.trim());
+  modalIdx=modalList.indexOf(key);
+  _openModal(key);
+}
+function modalNav(dir){
+  const ni=modalIdx+dir;
+  if(ni<0||ni>=modalList.length) return;
+  modalIdx=ni;_openModal(modalList[modalIdx]);
+}
+async function _openModal(key){
+  curModalKey=key;
+  document.getElementById('modalOv').classList.remove('hidden');
+  document.getElementById('mKey').textContent=key;
+  document.getElementById('mJiraLink').href=`https://${JIRA_DOMAIN}/browse/${key}`;
+  const prevBtn=document.getElementById('mPrev');const nextBtn=document.getElementById('mNext');
+  const navInfo=document.getElementById('mNavInfo');
+  if(prevBtn) prevBtn.disabled=modalIdx<=0;
+  if(nextBtn) nextBtn.disabled=modalIdx>=modalList.length-1;
+  if(navInfo) navInfo.textContent=modalList.length?`${modalIdx+1}/${modalList.length}`:'';
+  document.getElementById('mBody').innerHTML='<div class="mloading"><div class="v-spin"></div>載入中...</div>';
+  try{
+    const[issue,transitions,meta]=await Promise.all([
+      fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
+      fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
+      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
+    ]);
+    renderModal(issue,transitions,meta);
+  }catch(e){document.getElementById('mBody').innerHTML=`<div class="mloading">❌ 載入失敗：${e.message}</div>`;}
+}
+
+function extractText(doc){
+  if(!doc) return '';
+  if(typeof doc==='string') return doc;
+  const walk=n=>{if(!n) return '';if(n.type==='text') return n.text||'';if(n.type==='hardBreak') return '\n';if(n.content) return n.content.map(walk).join('');return '';};
+  return walk(doc).trim();
+}
+
+function renderModal(issue,transitions,meta){
+  const f=issue.fields||{};
+  const desc=extractText(f.description);
+  const comments=(f.comment?.comments||[]).slice(-5).reverse();
+  const subtasks=f.subtasks||[];
+  const links=f.issuelinks||[];
+  const assignees=meta?.assignees||[];
+
+  document.getElementById('mBody').innerHTML=`
+    <div class="msec">
+      <div class="msec-title">Summary</div>
+      <textarea id="m-sum" rows="2" oninput="markDirty()" style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;font-size:14px;font-weight:500;font-family:'IBM Plex Sans',sans-serif;color:var(--text);resize:vertical;outline:none;line-height:1.4;">${(f.summary||'').replace(/</g,'&lt;')}</textarea>
+    </div>
+    <div class="msec">
+      <div class="msec-title">Description</div>
+      <textarea id="m-desc" rows="4" oninput="markDirty()" placeholder="輸入描述..." style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);resize:vertical;outline:none;line-height:1.6;">${desc.replace(/</g,'&lt;')}</textarea>
+    </div>
+    <div class="msec">
+      <div class="msec-title">詳細資訊</div>
+      <div class="mmeta">
+        <div class="mfield">
+          <label>Status</label>
+          <span class="badge ${bCls(f.status?.statusCategory?.key||'')}">${f.status?.name||'—'}</span>
+          ${transitions.length?`<div class="mstatus-opts">${transitions.map(t=>`<span class="mstatus-opt ${f.status?.name===t.name?'cur':''}" onclick="doTransition('${issue.key}','${t.id}','${t.name}',this)">${t.name}</span>`).join('')}</div>`:''}
+        </div>
+        <div class="mfield">
+          <label>Assignee</label>
+          <select id="m-asgn" onchange="markDirty()">
+            <option value="">未指派</option>
+            ${assignees.map(u=>`<option value="${u.accountId}" ${f.assignee?.accountId===u.accountId?'selected':''}>${u.displayName}</option>`).join('')}
+          </select>
+        </div>
+        <div class="mfield">
+          <label>Due Date</label>
+          <input type="date" id="m-due" value="${f.duedate||''}" onchange="markDirty()">
+        </div>
+        <div class="mfield">
+          <label>Priority</label>
+          <select id="m-prio" onchange="markDirty()">
+            ${(meta?.priorities||[]).map(p=>`<option value="${p.name}" ${f.priority?.name===p.name?'selected':''}>${p.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="mfield"><label>Reporter</label><div style="font-size:12px">${f.reporter?.displayName||'—'}</div></div>
+        <div class="mfield"><label>Created</label><div style="font-size:11px;font-family:'IBM Plex Mono',monospace">${f.created?.slice(0,10)||'—'}</div></div>
+      </div>
+      <button class="msave hidden" id="m-save" onclick="saveModal('${issue.key}')">💾 儲存變更</button>
+    </div>
+    ${links.length?`<div class="msec"><div class="msec-title">Linked Issues (${links.length})</div><div class="mlinks">${links.map(l=>{const li=l.inwardIssue||l.outwardIssue;const lt=l.inwardIssue?l.type?.inward:l.type?.outward;return`<div class="mlink-item"><span class="mlink-type">${lt||''}</span><a href="https://${JIRA_DOMAIN}/browse/${li?.key}" target="_blank" style="color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:10px">${li?.key||''}</a><span style="color:var(--dim);font-size:11px">${li?.fields?.summary||''}</span></div>`;}).join('')}</div></div>`:''}
+    ${subtasks.length?`<div class="msec"><div class="msec-title">Sub-tasks (${subtasks.length})</div><div class="msubtasks">${subtasks.map(s=>`<div class="msub-item"><a href="https://${JIRA_DOMAIN}/browse/${s.key}" target="_blank">${s.key}</a><span style="color:var(--dim)">${s.fields?.summary||''}</span><span class="badge ${bCls(s.fields?.status?.statusCategory?.key||'')}" style="margin-left:auto;font-size:9px">${s.fields?.status?.name||''}</span></div>`).join('')}</div></div>`:''}
+    <div class="msec">
+      <div class="msec-title">新增 Sub-task</div>
+      <div class="mform">
+        <div class="mform-row">
+          <input type="text" id="m-sub-sum" placeholder="Sub-task 標題..." style="flex:2">
+          <select id="m-sub-asgn" style="min-width:120px;border:1px solid var(--bdr);border-radius:4px;padding:5px 8px;font-size:11px;background:var(--surf2);">
+            <option value="">不指派</option>
+            ${assignees.map(u=>`<option value="${u.accountId}">${u.displayName}</option>`).join('')}
+          </select>
+          <button class="mform-btn" onclick="addSubtask('${issue.key}')">新增</button>
+        </div>
+      </div>
+    </div>
+    <div class="msec">
+      <div class="msec-title">留言 (${f.comment?.total||0} 筆，顯示最新 ${comments.length} 筆)</div>
+      <div class="mcomments">${comments.map(c=>`<div class="mcomment"><div><span class="mcomment-author">${c.author?.displayName||'?'}</span><span class="mcomment-date">${c.created?.slice(0,10)||''}</span></div><div class="mcomment-text">${extractText(c.body).slice(0,300).replace(/</g,'&lt;')}${extractText(c.body).length>300?'...':''}</div></div>`).join('')}</div>
+      <div class="mform">
+        <textarea id="m-comment" placeholder="新增留言..."></textarea>
+        <div class="mform-row" style="justify-content:flex-end">
+          <button class="mform-btn" onclick="addComment('${issue.key}')">送出留言</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function markDirty(){document.getElementById('m-save')?.classList.remove('hidden');}
+
+async function saveModal(key){
+  const btn=document.getElementById('m-save');
+  btn.disabled=true;btn.textContent='儲存中...';
+  try{
+    const summary  = document.getElementById('m-sum')?.value.trim();
+    const desc     = document.getElementById('m-desc')?.value.trim();
+    const assignee = document.getElementById('m-asgn')?.value;
+    const duedate  = document.getElementById('m-due')?.value;
+    const priority = document.getElementById('m-prio')?.value;
+    if(!summary){btn.disabled=false;btn.textContent='💾 儲存變更';alert('Summary 不能為空');return;}
+    const r=await fetch(`${SERVER}/issue/${key}`,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({summary,description:desc||null,assignee:assignee||null,duedate:duedate||null,priority:priority||null})
+    });
+    const d=await r.json();
+    if(d.ok){
+      btn.textContent='✅ 已儲存';
+      // Update local data
+      const item=vAll.find(i=>i.key===key);
+      if(item){
+        item.summary=summary;
+        item.duedate=duedate||'—';
+        item.priority=priority||item.priority;
+      }
+      addHistory('修改 ticket',`Summary/Assignee/DueDate`,key);
+      vApply();
+      setTimeout(()=>{btn.textContent='💾 儲存變更';btn.disabled=false;btn.classList.add('hidden');},2000);
+    }else throw new Error('儲存失敗');
+  }catch(e){btn.textContent='❌ 失敗';btn.disabled=false;setTimeout(()=>{btn.textContent='💾 儲存變更';},2000);}
+}
+
+// Inline edit summary (double-click on summary cell)
+function inlineEditSum(key, td){
+  const orig = vAll.find(i=>i.key===key)?.summary || td.textContent.trim();
+  td.innerHTML=`<div style="display:flex;gap:4px;align-items:center;">
+    <input id="inline-sum-${key}" value="${orig.replace(/"/g,'&quot;').replace(/</g,'&lt;')}"
+      style="flex:1;border:1px solid var(--acc);border-radius:4px;padding:3px 6px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;outline:none;"
+      onclick="event.stopPropagation()"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();saveInlineSum('${key}',this.value);}if(event.key==='Escape'){event.stopPropagation();vApply();}">
+    <button onclick="event.stopPropagation();saveInlineSum('${key}',document.getElementById('inline-sum-${key}').value)"
+      style="padding:3px 8px;background:var(--acc);border:none;border-radius:4px;color:white;font-size:11px;cursor:pointer;white-space:nowrap;">✓</button>
+    <button onclick="event.stopPropagation();vApply()"
+      style="padding:3px 7px;background:transparent;border:1px solid var(--bdr);border-radius:4px;color:var(--muted);font-size:11px;cursor:pointer;">✕</button>
+  </div>`;
+  document.getElementById(`inline-sum-${key}`)?.focus();
+  document.getElementById(`inline-sum-${key}`)?.select();
+}
+
+async function saveInlineSum(key, newSummary){
+  const summary = newSummary.trim();
+  if(!summary){alert('Summary 不能為空');return;}
+  try{
+    const r=await fetch(`${SERVER}/issue/${key}`,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({summary})
+    });
+    const d=await r.json();
+    if(d.ok){
+      const item=vAll.find(i=>i.key===key);
+      if(item) item.summary=summary;
+      addHistory('修改 Summary',summary.slice(0,40)+(summary.length>40?'...':''),key);
+      vApply();
+    }else{alert('儲存失敗');vApply();}
+  }catch(e){alert('儲存失敗：'+e.message);vApply();}
+}
+
+async function doTransition(key,transId,transName,el){
+  el.style.opacity='.5';
+  try{
+    const r=await fetch(`${SERVER}/issue/${key}/transition`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transitionId:transId})});
+    const d=await r.json();
+    if(d.ok){
+      document.querySelectorAll('.mstatus-opt').forEach(s=>s.classList.remove('cur'));
+      el.classList.add('cur');
+      const item=vAll.find(i=>i.key===key);
+      if(item){item.status=transName;vApply();}
+      addHistory('修改狀態',transName,key);
+    }
+  }catch(e){}
+  el.style.opacity='1';
+}
+
+async function addComment(key){
+  const text=document.getElementById('m-comment').value.trim();
+  if(!text) return;
+  const btn=document.querySelector('#mBody .mform-btn:last-child');
+  if(btn){btn.disabled=true;btn.textContent='送出中...';}
+  try{
+    const r=await fetch(`${SERVER}/issue/${key}/comment`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    const d=await r.json();
+    if(d.ok){
+      document.getElementById('m-comment').value='';
+      addHistory('新增留言',text.slice(0,30)+(text.length>30?'...':''),key);
+      // Reload modal
+      await openModal(key);
+    }else throw new Error('送出失敗');
+  }catch(e){alert('留言失敗：'+e.message);}
+  if(btn){btn.disabled=false;btn.textContent='送出留言';}
+}
+
+async function addSubtask(parentKey){
+  const sum=document.getElementById('m-sub-sum').value.trim();
+  if(!sum){alert('請輸入 Sub-task 標題');return;}
+  const assignee=document.getElementById('m-sub-asgn').value;
+  const btn=document.querySelector('#mBody .mform-btn');
+  if(btn){btn.disabled=true;btn.textContent='建立中...';}
+  try{
+    const r=await fetch(`${SERVER}/issue/${parentKey}/subtask`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:vProj,summary:sum,assignee})});
+    const d=await r.json();
+    if(d.ok){
+      document.getElementById('m-sub-sum').value='';
+      addHistory('新增 Sub-task',sum,parentKey);
+      await openModal(parentKey);
+    }else throw new Error(d.error||'建立失敗');
+  }catch(e){alert('建立 Sub-task 失敗：'+e.message);}
+  if(btn){btn.disabled=false;btn.textContent='新增';}
+}
+
+// Modal close - only close if both mousedown and mouseup on overlay (not drag)
+let modalMousedownOnOverlay = false;
+document.getElementById('modalOv').addEventListener('mousedown', e => {
+  modalMousedownOnOverlay = e.target === document.getElementById('modalOv');
+});
+document.getElementById('modalOv').addEventListener('mouseup', e => {
+  if(modalMousedownOnOverlay && e.target === document.getElementById('modalOv')) closeModal();
+  modalMousedownOnOverlay = false;
+});
+function closeModalOv(e){}
+function closeModal(){document.getElementById('modalOv').classList.add('hidden');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
+
+// ══ CREATOR ══
+let cMeta={issueTypes:[],priorities:[],assignees:[]},cSP='',cSB='',cSE='',cRowId=0;
+let createdKeys=[];
+let pendingImport=[];
+
+async function cLoadProjects(){
+  try{
+    const r=await fetch(`${SERVER}/projects`);
+    const projects=await r.json();
+    const sel=document.getElementById('c-proj');
+    sel.innerHTML='<option value="">請選擇...</option>';
+    [...projects].sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{const o=document.createElement('option');o.value=p.key;o.textContent=`${p.name} (${p.key})`;sel.appendChild(o);});
+    document.getElementById('c-loading').classList.add('hidden');
+    document.getElementById('c-selWrap').classList.remove('hidden');
+  }catch(e){document.getElementById('c-loading').innerHTML=`<span style="color:var(--danger)">❌ 載入失敗：${e.message}</span>`;}
+}
+
+async function cOnProj(){
+  const proj=document.getElementById('c-proj').value;
+  document.getElementById('c-confBtn').disabled=!proj;
+  if(!proj){cResetDrop('c-board','請先選空間');cResetDrop('c-epic','請先選空間');cResetDrop('c-sprint','請先選看板');return;}
+  cResetDrop('c-board','載入中...');cResetDrop('c-epic','載入中...');cResetDrop('c-sprint','請先選看板');
+  const[boards,epics]=await Promise.all([
+    fetch(`${SERVER}/boards?project=${proj}`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${SERVER}/epics?project=${proj}`).then(r=>r.json()).catch(()=>[])
+  ]);
+  const bSel=document.getElementById('c-board');bSel.disabled=false;bSel.innerHTML='<option value="">不指定看板</option>';
+  boards.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.name;bSel.appendChild(o);});
+  if(!boards.length){bSel.innerHTML='<option value="">此空間無看板</option>';bSel.disabled=true;}
+  // Load sprints when board changes
+  bSel.onchange=async()=>{
+    const boardId=bSel.value;
+    const sprintSel=document.getElementById('c-sprint');
+    if(!boardId){cResetDrop('c-sprint','請先選看板');return;}
+    sprintSel.disabled=false;sprintSel.innerHTML='<option value="">載入中...</option>';
+    const sprints=await fetch(`${SERVER}/sprints?boardId=${boardId}`).then(r=>r.json()).catch(()=>[]);
+    sprintSel.innerHTML='<option value="">不指定 Sprint</option>';
+    sprints.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.name} (${s.state})`;sprintSel.appendChild(o);});
+    if(!sprints.length){sprintSel.innerHTML='<option value="">無可用 Sprint</option>';}
+  };
+  const eSel=document.getElementById('c-epic');eSel.disabled=false;eSel.innerHTML='<option value="">不指定 Epic</option>';
+  epics.forEach(e=>{const o=document.createElement('option');o.value=e.key;o.textContent=`${e.key} · ${e.summary}`;eSel.appendChild(o);});
+  if(!epics.length){eSel.innerHTML='<option value="">此空間無 Epic</option>';eSel.disabled=true;}
+}
+
+function cResetDrop(id,text){const el=document.getElementById(id);el.innerHTML=`<option value="">${text}</option>`;el.disabled=true;}
+
+async function cConfirm(){
+  cSP=document.getElementById('c-proj').value;
+  cSB=document.getElementById('c-board').value;
+  cSE=document.getElementById('c-epic').value;
+  if(!cSP) return;
+  const rows=document.getElementById('c-body').querySelectorAll('tr').length;
+  if(rows>0&&!document.getElementById('c-card2').classList.contains('hidden')){
+    if(!confirm('重新確認空間會清除目前已填寫的資料，確定繼續？')) return;
+  }
+  const btn=document.getElementById('c-confBtn');btn.disabled=true;btn.textContent='載入中...';
+  try{
+    const r=await fetch(`${SERVER}/meta?project=${cSP}`);cMeta=await r.json();
+    // Also load labels
+    const lblData=await fetch(`${SERVER}/labels?project=${cSP}`).then(r=>r.json()).catch(()=>[]);
+    cMeta.labels=lblData;
+    const pSel=document.getElementById('c-proj');
+    const parts=[`空間：${pSel.options[pSel.selectedIndex]?.text}`];
+    if(cSB){const s=document.getElementById('c-board');parts.push(`看板：${s.options[s.selectedIndex]?.text}`);}
+    if(cSE){const s=document.getElementById('c-epic');parts.push(`Epic：${s.options[s.selectedIndex]?.text}`);}
+    document.getElementById('c-card2desc').innerHTML=`每一列代表一張 ticket，<span style="color:var(--danger)">*</span> 為必填。<br><span style="font-size:11px;color:var(--muted)">${parts.join('　·　')}</span>`;
+    document.getElementById('c-body').innerHTML='';cRowId=0;
+    for(let i=0;i<5;i++) cAddRow();
+    document.getElementById('c-card2').classList.remove('hidden');
+    cSetStep(2);
+    document.getElementById('c-card2').scrollIntoView({behavior:'smooth'});
+  }catch(e){alert('載入失敗：'+e.message);}
+  btn.disabled=false;btn.textContent='確認 →';
+}
+
+function cAddRow(dS='',dD='',dDue='',dTypeId='',dAsgId='',dPrioId='',dLabels='',dParent=''){
+  cRowId++;const id=cRowId;
+  const tr=document.createElement('tr');tr.id='c-r-'+id;tr.dataset.id=id;
+  const tOpts='<option value="">請選擇...</option>'+[...cMeta.issueTypes].sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}" ${t.id===dTypeId?'selected':''}>${t.name}</option>`).join('');
+  const pOpts='<option value="">—</option>'+[...cMeta.priorities].map(p=>`<option value="${p.id}" ${p.id===dPrioId?'selected':''}>${p.name}</option>`).join('');
+  const aOpts='<option value="">不指派</option>'+[...cMeta.assignees].sort((a,b)=>a.displayName.localeCompare(b.displayName)).map(u=>`<option value="${u.accountId}" ${u.accountId===dAsgId?'selected':''}>${u.displayName}</option>`).join('');
+  const esc=s=>String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  tr.innerHTML=`
+    <td class="rn">${id}</td>
+    <td><input class="ci" id="c-s-${id}" placeholder="Ticket 標題..." value="${esc(dS)}" oninput="cUpdateSum()"></td>
+    <td><input class="ci" id="c-d-${id}" placeholder="描述" value="${esc(dD)}"></td>
+    <td><select class="cs" id="c-t-${id}">${tOpts}</select></td>
+    <td><select class="cs" id="c-p-${id}">${pOpts}</select></td>
+    <td><select class="cs" id="c-a-${id}">${aOpts}</select></td>
+    <td><input class="ci" id="c-dd-${id}" type="date" value="${dDue}" style="font-family:'IBM Plex Mono',monospace;font-size:10px"></td>
+    <td><input class="ci" id="c-lbl-${id}" placeholder="label1,label2" value="${esc(dLabels)}" style="font-size:10px"></td>
+    <td><input class="ci" id="c-par-${id}" placeholder="如 OK-12" value="${esc(dParent)}" style="font-size:10px"></td>
+    <td><button class="rm-btn" onclick="cRemoveRow(${id})">✕</button></td>`;
+  document.getElementById('c-body').appendChild(tr);
+  cUpdateCnt();
+}
+
+function cAddMulti(){const n=Math.min(parseInt(document.getElementById('c-multi').value)||5,50);for(let i=0;i<n;i++) cAddRow();}
+function cRemoveRow(id){document.getElementById('c-r-'+id)?.remove();cUpdateCnt();cUpdateSum();}
+function cClear(){if(!confirm('確定要清除所有列嗎？')) return;document.getElementById('c-body').innerHTML='';cRowId=0;for(let i=0;i<5;i++) cAddRow();cUpdateSum();}
+function cUpdateCnt(){document.getElementById('c-cnt').textContent=document.getElementById('c-body').querySelectorAll('tr').length+' 列';}
+function cUpdateSum(){
+  const rows=cGetRows();
+  const v=rows.filter(r=>r.valid).length,e=rows.filter(r=>(r.summary||r.issueTypeId)&&!r.valid).length,em=rows.filter(r=>!r.summary&&!r.issueTypeId).length;
+  document.getElementById('c-sumBar').innerHTML=`<span><span class="dot dok"></span>${v} 筆可建立</span>${e>0?`<span><span class="dot derr"></span>${e} 筆有錯誤</span>`:''}<span><span class="dot dem"></span>${em} 列空白</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">${rows.length} 列</span>`;
+  document.getElementById('c-btnLbl').textContent=`✚ 建立 ${v} 筆 Tickets`;
+}
+function cGetRows(){
+  return[...document.getElementById('c-body').querySelectorAll('tr')].map(tr=>{
+    const id=tr.dataset.id;
+    const summary=(document.getElementById('c-s-'+id)?.value||'').trim();
+    const description=(document.getElementById('c-d-'+id)?.value||'').trim();
+    const issueTypeId=document.getElementById('c-t-'+id)?.value||'';
+    const priorityId=document.getElementById('c-p-'+id)?.value||'';
+    const assigneeId=document.getElementById('c-a-'+id)?.value||'';
+    const duedate=document.getElementById('c-dd-'+id)?.value||'';
+    const labelsRaw=(document.getElementById('c-lbl-'+id)?.value||'').trim();
+    const labels=labelsRaw?labelsRaw.split(',').map(l=>l.trim()).filter(Boolean):[];
+    const parentKey=(document.getElementById('c-par-'+id)?.value||'').trim();
+    return{id,summary,description,issueTypeId,priorityId,assigneeId,duedate,labels,parentKey,valid:!!summary&&!!issueTypeId};
+  });
+}
+
+async function cSubmit(){
+  cUpdateSum();
+  const valid=cGetRows().filter(r=>r.valid);
+  if(!valid.length){alert('請至少填寫一筆有效的 ticket');return;}
+  const btn=document.getElementById('c-subBtn');btn.disabled=true;btn.classList.add('loading');
+  try{
+    const r=await fetch(`${SERVER}/create-batch`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({issues:valid.map(r=>({project:cSP,summary:r.summary,description:r.description,issueType:r.issueTypeId,priority:r.priorityId,assignee:r.assigneeId,duedate:r.duedate,epic:cSE||'',parentKey:r.parentKey||'',labels:r.labels||[]}))})});
+    const data=await r.json();
+    createdKeys=(data.issues||[]).map(i=>i.key);
+    cRenderResult(data,valid);
+    cSetStep(3);
+    addHistory('批次建立 tickets',`${createdKeys.length} 筆成功`,null);
+  }catch(e){alert('建立失敗：'+e.message);}
+  btn.disabled=false;btn.classList.remove('loading');
+}
+
+function cRenderResult(data,rows){
+  const created=Array.isArray(data.issues)?data.issues:[];
+  const errors=Array.isArray(data.errors)?data.errors:[];
+  if(data.errorMessages?.length||(data.errors&&!Array.isArray(data.errors))){
+    document.getElementById('c-resStats').innerHTML=`<span class="sfail">❌ 失敗：${data.errorMessages?.[0]||JSON.stringify(data.errors)}</span>`;
+    document.getElementById('c-resList').innerHTML='';
+    document.getElementById('c-card3').classList.remove('hidden');
+    document.getElementById('c-card3').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  document.getElementById('c-resStats').innerHTML=`<span class="sok">✅ 成功建立 ${created.length} 筆</span>${errors.length?`<span class="sfail">❌ 失敗 ${errors.length} 筆</span>`:''}`;
+  document.getElementById('c-resList').innerHTML=
+    created.map((issue,i)=>`<div class="res-row"><span class="rkey"><a href="https://${JIRA_DOMAIN}/browse/${issue.key}" target="_blank">${issue.key}</a></span><span style="color:var(--muted);font-size:10px">${rows[i]?.summary||''}</span></div>`).join('')+
+    errors.map((err,i)=>`<div class="res-row"><span class="sfail" style="font-size:10px">✗ ${rows[created.length+i]?.summary||''} — ${Object.values(err.elementErrors?.errors||{}).join('、')||'未知錯誤'}</span></div>`).join('');
+  document.getElementById('c-card3').classList.remove('hidden');
+  document.getElementById('c-card3').scrollIntoView({behavior:'smooth'});
+}
+
+function copyCreatedKeys(){
+  if(!createdKeys.length) return;
+  navigator.clipboard.writeText(createdKeys.join('\n')).then(()=>alert(`✅ 已複製 ${createdKeys.length} 筆 ticket keys`)).catch(()=>alert(createdKeys.join('\n')));
+}
+
+function cSetStep(n){[1,2,3].forEach(i=>{const el=document.getElementById('c-step'+i);el.classList.remove('active','done');if(i<n)el.classList.add('done');if(i===n)el.classList.add('active');});}
+
+function cReset(){
+  document.getElementById('c-card2').classList.add('hidden');
+  document.getElementById('c-card3').classList.add('hidden');
+  document.getElementById('c-body').innerHTML='';cRowId=0;cSP='';cSB='';cSE='';createdKeys=[];
+  document.getElementById('c-proj').value='';
+  document.getElementById('c-confBtn').disabled=true;document.getElementById('c-confBtn').textContent='確認 →';
+  cResetDrop('c-board','請先選空間');cResetDrop('c-epic','請先選空間');
+  cSetStep(1);window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// Draft - named management
+function cSaveDraft(){
+  const name=prompt('草稿名稱：',`草稿 ${new Date().toLocaleString('zh-TW')}`);
+  if(!name) return;
+  const rows=cGetRows();
+  const draft={name,project:cSP,board:cSB,epic:cSE,rows:rows.map(r=>({summary:r.summary,description:r.description,issueTypeId:r.issueTypeId,priorityId:r.priorityId,assigneeId:r.assigneeId,duedate:r.duedate,labels:r.labels?.join(',')||'',parentKey:r.parentKey})),ts:Date.now()};
+  drafts.unshift(draft);if(drafts.length>20)drafts.pop();
+  localStorage.setItem('jira_drafts_v2',JSON.stringify(drafts));
+  alert(`✅ 草稿「${name}」已儲存（${rows.length} 列）`);
+}
+function toggleDraftManager(){
+  const el=document.getElementById('draftManager');
+  el.classList.toggle('hidden');
+  if(!el.classList.contains('hidden')) renderDraftList();
+}
+function renderDraftList(){
+  const list=document.getElementById('draftList');
+  if(!drafts.length){list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px">尚無草稿</div>';return;}
+  list.innerHTML=drafts.map((d,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--bdr);font-size:11px">
+    <span style="flex:1;color:var(--dim);font-family:'IBM Plex Mono',monospace">${d.name}</span>
+    <span style="font-size:10px;color:var(--muted)">${new Date(d.ts).toLocaleDateString('zh-TW')}</span>
+    <button style="padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;font-size:10px;cursor:pointer;background:transparent" onclick="loadDraft(${i})">載入</button>
+    <button style="padding:2px 6px;border:1px solid var(--bdr);border-radius:4px;font-size:10px;cursor:pointer;background:transparent;color:var(--danger)" onclick="deleteDraft(${i})">✕</button>
+  </div>`).join('');
+}
+function loadDraft(idx){
+  const d=drafts[idx];
+  if(!confirm(`載入草稿「${d.name}」？（${d.rows?.length||0} 列）`)) return;
+  document.getElementById('c-body').innerHTML='';cRowId=0;
+  (d.rows||[]).forEach(r=>cAddRow(r.summary,r.description,r.duedate,r.issueTypeId,r.assigneeId,r.priorityId,r.labels||'',r.parentKey||''));
+  cUpdateCnt();cUpdateSum();
+  document.getElementById('draftManager').classList.add('hidden');
+  alert('✅ 草稿載入完成');
+}
+function deleteDraft(idx){
+  if(!confirm(`刪除草稿「${drafts[idx].name}」？`)) return;
+  drafts.splice(idx,1);
+  localStorage.setItem('jira_drafts_v2',JSON.stringify(drafts));
+  renderDraftList();
+}
+function cLoadDraft(){toggleDraftManager();}
+
+// Excel import with preview (item 16)
+function cImportExcel(input){
+  const file=input.files[0];if(!file) return;
+  const status=document.getElementById('c-xlStatus');status.textContent='解析中...';status.style.color='var(--muted)';
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let hi=-1;
+      for(let i=0;i<Math.min(rows.length,10);i++){const row=rows[i].map(c=>String(c).trim());if(row.some(c=>c.includes('资料')||c.includes('Item')||c.includes('Summary'))){hi=i;break;}}
+      if(hi===-1) hi=1;
+      const headers=rows[hi].map(c=>String(c).trim().toLowerCase());
+      const ci={
+        summary:headers.findIndex(h=>h.includes('资料文件')||h.includes('名称')||h.includes('summary')),
+        desc:headers.findIndex(h=>h.includes('要求')||h.includes('说明')||h.includes('description')),
+        issueType:headers.findIndex(h=>h.includes('類型')||h.includes('类型')||h.includes('issue type')),
+        duedate:headers.findIndex(h=>(h.includes('计划')&&h.includes('完成'))||h==='due date'),
+        assignee:headers.findIndex(h=>h.includes('负责')||h==='assignee'),
+        priority:headers.findIndex(h=>h==='priority'||h.includes('優先')||h.includes('优先')),
+      };
+      function xDate(val){
+        if(!val) return '';
+        if(val instanceof Date) return val.toISOString().slice(0,10);
+        if(typeof val==='number'&&val>40000){const d=XLSX.SSF.parse_date_code(val);if(d)return`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
+        const s=String(val).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;return '';
+      }
+      // Parse rows
+      pendingImport=[];
+      for(let i=hi+1;i<rows.length;i++){
+        const row=rows[i];if(!row||row.every(c=>!c)) continue;
+        const summary=ci.summary>=0?String(row[ci.summary]||'').trim():'';
+        if(!summary||summary.startsWith('(')) continue;
+        pendingImport.push({
+          summary,
+          desc:ci.desc>=0?String(row[ci.desc]||'').trim():'',
+          duedate:ci.duedate>=0?xDate(row[ci.duedate]):'',
+          issueTypeStr:ci.issueType>=0?String(row[ci.issueType]||'').trim():'',
+          assigneeStr:ci.assignee>=0?String(row[ci.assignee]||'').trim():'',
+          priorityStr:ci.priority>=0?String(row[ci.priority]||'').trim():'',
+        });
+      }
+      // Show preview
+      showImportPreview(pendingImport);
+      status.textContent=`📋 預覽 ${pendingImport.length} 筆，請確認後匯入`;
+      status.style.color='var(--acc)';
+    }catch(err){status.textContent='❌ 解析失敗：'+err.message;status.style.color='var(--danger)';}
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showImportPreview(rows){
+  const preview=document.getElementById('xlPreview');
+  preview.classList.add('show');
+  document.getElementById('xlPreviewCount').textContent=`共 ${rows.length} 筆`;
+  const html=`<table class="xl-tbl">
+    <thead><tr><th>#</th><th>Summary</th><th>類型</th><th>負責人</th><th>Priority</th><th>Due Date</th></tr></thead>
+    <tbody>${rows.slice(0,20).map((r,i)=>`<tr><td>${i+1}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.summary}</td><td>${r.issueTypeStr}</td><td>${r.assigneeStr}</td><td>${r.priorityStr}</td><td>${r.duedate}</td></tr>`).join('')}
+    ${rows.length>20?`<tr><td colspan="6" style="color:var(--muted);text-align:center">...以及其他 ${rows.length-20} 筆</td></tr>`:''}</tbody>
+  </table>`;
+  document.getElementById('xlPreviewTable').innerHTML=html;
+}
+
+function cConfirmImport(){
+  document.getElementById('c-body').innerHTML='';cRowId=0;
+  let imported=0;
+  pendingImport.forEach(r=>{
+    const mt=cMeta.issueTypes.find(t=>t.name.toLowerCase()===r.issueTypeStr.toLowerCase()||t.name.toLowerCase().includes(r.issueTypeStr.toLowerCase())||r.issueTypeStr.toLowerCase().includes(t.name.toLowerCase()));
+    const ma=r.assigneeStr?cMeta.assignees.find(u=>u.displayName.toLowerCase()===r.assigneeStr.toLowerCase()||u.displayName.toLowerCase().includes(r.assigneeStr.toLowerCase())||r.assigneeStr.toLowerCase().includes(u.displayName.toLowerCase())):null;
+    const mp=r.priorityStr?cMeta.priorities.find(p=>p.name.toLowerCase()===r.priorityStr.toLowerCase()||p.name.toLowerCase().includes(r.priorityStr.toLowerCase())||r.priorityStr.toLowerCase().includes(p.name.toLowerCase())):null;
+    cAddRow(r.summary,r.desc,r.duedate,mt?.id||'',ma?.accountId||'',mp?.id||'');
+    imported++;
+  });
+  cUpdateCnt();cUpdateSum();
+  document.getElementById('xlPreview').classList.remove('show');
+  document.getElementById('c-xlStatus').textContent=`✅ 已匯入 ${imported} 筆`;
+  document.getElementById('c-xlStatus').style.color='var(--success)';
+  pendingImport=[];
+}
+
+function cancelImport(){
+  document.getElementById('xlPreview').classList.remove('show');
+  document.getElementById('c-xlStatus').textContent='';
+  pendingImport=[];
+}
+
+// ── Expand row (item 9) ──
+function toggleExpand(key){
+  const tr=document.getElementById('tr-'+key);if(!tr) return;
+  const existing=document.getElementById('exp-'+key);
+  const btn=document.getElementById('eb-'+key);
+  if(existing){existing.remove();if(btn)btn.textContent='▶';expandedKeys.delete(key);return;}
+  expandedKeys.add(key);if(btn)btn.textContent='▼';
+  const expTr=document.createElement('tr');expTr.id='exp-'+key;
+  expTr.innerHTML=`<td colspan="12" style="background:#f8f9ff;font-size:11px;color:var(--dim);padding:6px 12px 8px 52px;line-height:1.6"><span style="color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500">${key}</span> <span style="color:var(--muted)">載入中...</span></td>`;
+  tr.after(expTr);
+  fetch(`${SERVER}/issue/${key}`).then(r=>r.json()).then(data=>{
+    const desc=extractText(data.fields?.description)||'（無描述）';
+    expTr.querySelector('td').innerHTML=`<span style="color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500">${key}</span> <span style="color:var(--dim)">${desc.slice(0,300).replace(/</g,'&lt;')}${desc.length>300?'...':''}</span>`;
+  }).catch(()=>{});
+}
+
+// ── Inline edit: Status (item 6) ──
+async function inlineEditStatus(key,el){
+  const td=el.closest('td');
+  const transitions=await fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]);
+  if(!transitions.length){alert('無法取得狀態選項');return;}
+  const item=vAll.find(i=>i.key===key);
+  const sel=document.createElement('select');
+  sel.style.cssText='border:1px solid var(--acc);border-radius:4px;padding:2px 4px;font-size:11px;outline:none;background:white';
+  sel.innerHTML=transitions.map(t=>`<option value="${t.id}" ${item?.status===t.name?'selected':''}>${t.name}</option>`).join('');
+  sel.onclick=e=>e.stopPropagation();
+  sel.onchange=async()=>{
+    const transId=sel.value,transName=sel.options[sel.selectedIndex].text;sel.disabled=true;
+    try{
+      const r=await fetch(`${SERVER}/issue/${key}/transition`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transitionId:transId})});
+      const d=await r.json();
+      if(d.ok){if(item)item.status=transName;addHistory('改狀態',transName,key);vApply();}
+      else{alert('狀態更新失敗');vApply();}
+    }catch(e){alert('失敗：'+e.message);vApply();}
+  };
+  sel.onblur=()=>setTimeout(vApply,200);
+  td.innerHTML='';td.appendChild(sel);sel.focus();
+}
+
+// ── Inline edit: Assignee (item 5) ──
+async function inlineEditAssignee(key,el){
+  if(!vMeta.assignees.length&&vProj){const m=await fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>({assignees:[]}));vMeta.assignees=m.assignees||[];}
+  const td=el.closest('td');const item=vAll.find(i=>i.key===key);
+  const sel=document.createElement('select');
+  sel.style.cssText='border:1px solid var(--acc);border-radius:4px;padding:2px 4px;font-size:11px;outline:none;background:white;max-width:120px';
+  sel.innerHTML='<option value="">未指派</option>'+vMeta.assignees.map(u=>`<option value="${u.accountId}" ${item?.assignee===u.displayName?'selected':''}>${u.displayName}</option>`).join('');
+  sel.onclick=e=>e.stopPropagation();
+  sel.onchange=async()=>{
+    const accountId=sel.value,name=sel.options[sel.selectedIndex].text;sel.disabled=true;
+    try{
+      const r=await fetch(`${SERVER}/issue/${key}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignee:accountId||null})});
+      const d=await r.json();
+      if(d.ok){if(item)item.assignee=accountId?name:'';addHistory('改 Assignee',name,key);vApply();}
+      else{alert('更新失敗');vApply();}
+    }catch(e){alert('失敗：'+e.message);vApply();}
+  };
+  sel.onblur=()=>setTimeout(vApply,200);
+  td.innerHTML='';td.appendChild(sel);sel.focus();
+}
+
+// ── Inline edit: Due Date (item 4) ──
+function inlineEditDue(key,el){
+  const td=el.closest('td');const item=vAll.find(i=>i.key===key);
+  const inp=document.createElement('input');inp.type='date';
+  inp.style.cssText='border:1px solid var(--acc);border-radius:4px;padding:2px 4px;font-size:11px;outline:none;background:white';
+  inp.value=item?.duedate&&item.duedate!=='—'?item.duedate:'';
+  inp.onclick=e=>e.stopPropagation();
+  inp.onchange=async()=>{
+    const duedate=inp.value;inp.disabled=true;
+    try{
+      const r=await fetch(`${SERVER}/issue/${key}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({duedate:duedate||null})});
+      const d=await r.json();
+      if(d.ok){if(item)item.duedate=duedate||'—';addHistory('改截止日',duedate||'清除',key);vApply();}
+      else{alert('更新失敗');vApply();}
+    }catch(e){alert('失敗：'+e.message);vApply();}
+  };
+  inp.onblur=()=>setTimeout(vApply,300);
+  td.innerHTML='';td.appendChild(inp);inp.focus();
+}
+
+// ── Saved filters (item 8) ──
+function saveCurrentFilter(){
+  const name=prompt('篩選名稱：');if(!name) return;
+  const state={name,proj:vProj,stat:document.getElementById('f-stat').value,asgn:document.getElementById('f-asgn').value,type:document.getElementById('f-type').value,kw:document.getElementById('f-kw').value,date:document.getElementById('f-date').value,due:document.getElementById('f-due').value,statCat:vStatCat,jql:vJql,ts:Date.now()};
+  savedFilters.unshift(state);if(savedFilters.length>10)savedFilters.pop();
+  localStorage.setItem('jira_saved_filters',JSON.stringify(savedFilters));
+  renderSavedFilters();alert(`✅ 篩選「${name}」已儲存`);
+}
+function renderSavedFilters(){
+  const list=document.getElementById('savedFiltersList');if(!list) return;
+  list.innerHTML=savedFilters.map((f,i)=>`<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;background:#deebff;border:1px solid #b3d4ff;border-radius:10px;font-size:10px;color:var(--acc);cursor:pointer;margin:1px" onclick="applySavedFilter(${i})">${f.name}<span onclick="event.stopPropagation();deleteSavedFilter(${i})" style="opacity:.6;font-size:11px;margin-left:2px;cursor:pointer">✕</span></span>`).join('');
+}
+async function applySavedFilter(idx){
+  const f=savedFilters[idx];
+  if(f.proj&&f.proj!==vProj){document.getElementById('f-proj').value=f.proj;await vOnProj();}
+  ['stat','asgn','type','kw','date','due'].forEach(k=>{const el=document.getElementById('f-'+k);if(el&&f[k]!==undefined)el.value=f[k]||'';});
+  if(f.jql)document.getElementById('f-jql').value=f.jql;
+  vStatCat=f.statCat||'';vJql=f.jql||'';vApply();
+}
+function deleteSavedFilter(idx){savedFilters.splice(idx,1);localStorage.setItem('jira_saved_filters',JSON.stringify(savedFilters));renderSavedFilters();}
+
+// ── URL state sync (item 11) ──
+function syncUrlState(){
+  try{
+    const params=new URLSearchParams();
+    if(vProj)params.set('proj',vProj);
+    const kw=document.getElementById('f-kw').value;if(kw)params.set('kw',kw);
+    const stat=document.getElementById('f-stat').value;if(stat)params.set('stat',stat);
+    if(vStatCat)params.set('scat',vStatCat);
+    if(vJql)params.set('jql',vJql);
+    const s=params.toString();
+    history.replaceState(null,'',s?`?${s}`:window.location.pathname);
+  }catch(e){}
+}
+async function restoreUrlState(){
+  try{
+    const params=new URLSearchParams(window.location.search);
+    const proj=params.get('proj');
+    if(proj){document.getElementById('f-proj').value=proj;await vOnProj();}
+    const kw=params.get('kw');if(kw)document.getElementById('f-kw').value=kw;
+    const stat=params.get('stat');if(stat)document.getElementById('f-stat').value=stat;
+    const scat=params.get('scat');if(scat)vStatCat=scat;
+    const jql=params.get('jql');if(jql){document.getElementById('f-jql').value=jql;vJql=jql;}
+    if(kw||stat||scat||jql)vApply();
+  }catch(e){}
+}
+function shareUrl(){
+  syncUrlState();
+  navigator.clipboard.writeText(window.location.href).then(()=>alert('✅ 篩選連結已複製')).catch(()=>prompt('複製此連結：',window.location.href));
+}
+
+// ── Filter after create (item 17) ──
+function vFilterCreated(){
+  if(!createdKeys.length){vFetch();return;}
+  const jql=`issue in (${createdKeys.join(',')})`;
+  if(cSP){document.getElementById('f-proj').value=cSP;vProj=cSP;}
+  document.getElementById('f-jql').value=jql;vJql=jql;
+  vFetch();
+}
+
+// ── Clone ticket (item 16) ──
+function showCloneModal(key){
+  if(!key) return;
+  cloneSrcKey=key;
+  document.getElementById('cloneSrcKey').textContent=key;
+  document.getElementById('cloneSummary').value='';
+  document.getElementById('cloneModal').style.display='flex';
+  setTimeout(()=>document.getElementById('cloneSummary').focus(),100);
+}
+async function doClone(){
+  const summary=document.getElementById('cloneSummary').value.trim();
+  const btn=document.querySelector('#cloneModal button:last-child');
+  btn.disabled=true;btn.textContent='複製中...';
+  try{
+    const r=await fetch(`${SERVER}/clone`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:cloneSrcKey,summary:summary||null,project:vProj})});
+    const d=await r.json();
+    if(d.ok){
+      document.getElementById('cloneModal').style.display='none';
+      addHistory('複製 ticket',`${cloneSrcKey} → ${d.key}`,d.key);
+      alert(`✅ 已建立副本：${d.key}`);
+      await vFetch();
+    }else{alert('複製失敗：'+JSON.stringify(d.error||d.errors));}
+  }catch(e){alert('複製失敗：'+e.message);}
+  btn.disabled=false;btn.textContent='建立副本';
+}
+
+// ── Ctrl+S save modal ──
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'&&!document.getElementById('modalOv').classList.contains('hidden')){
+    e.preventDefault();
+    const btn=document.getElementById('m-save');
+    if(btn&&!btn.classList.contains('hidden'))btn.click();
+  }
+});
+
+// ── Mobile swipe modal nav ──
+let _touchStartX=0;
+document.getElementById('modal').addEventListener('touchstart',e=>{_touchStartX=e.touches[0].clientX;},{passive:true});
+document.getElementById('modal').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-_touchStartX;
+  if(Math.abs(dx)>80){if(dx<0)modalNav(1);else modalNav(-1);}
+},{passive:true});
+
+// ── Init ──
+switchTab('viewer');
+vLoadProjects();
+cLoadProjects();
+renderHistory();
+renderSavedFilters();
+restoreUrlState();
+
+// Keepalive
+setInterval(async()=>{try{await fetch(`${SERVER}/ping`);}catch(e){}},4*60*1000);
+// Auto sync
+setInterval(async()=>{if(vProj&&document.getElementById('page-viewer').classList.contains('active')) await vFetch();},cacheTtlMs);
+</script>
+</body>
+</html>
