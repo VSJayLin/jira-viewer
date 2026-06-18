@@ -629,6 +629,24 @@ const TIPO={'Story':'📋','Bug':'🐛','Task':'✅','Sub-task':'↳','Epic':'�
 const PCOL={'Highest':'#bf2600','High':'#de350b','Medium':'#0052cc','Low':'#00875a','Lowest':'#6b778c'};
 let cacheTtlMs=5*60*1000;
 
+// ── All state variables declared upfront to avoid TDZ errors ──
+let vAll=[],vSortK='key',vSortA=true,vProj='',vBoard='',vEpic='',vStatCat='',vJql='';
+let selectedKeys=new Set();
+let lastCached=false;
+let sortKeys=[{k:'key',a:true}];
+let modalList=[],modalIdx=0;
+let expandedKeys=new Set();
+let cloneSrcKey='';
+let createdKeys=[];
+let history=JSON.parse(localStorage.getItem('jira_history')||'[]');
+let notifRead=new Set(JSON.parse(localStorage.getItem('notif_read')||'[]'));
+let savedFilters=JSON.parse(localStorage.getItem('jira_saved_filters')||'[]');
+let drafts=JSON.parse(localStorage.getItem('jira_drafts_v2')||'[]');
+let cMeta={issueTypes:[],priorities:[],assignees:[]},cSP='',cSB='',cSE='',cRowId=0;
+let vMeta={assignees:[],transitions:[]};
+let pendingImport=[];
+const visCols=new Set(['type','status','priority','assignee','reporter','labels','duedate','updated']);
+
 // ── Tab ──
 function switchTab(t){
   ['viewer','creator'].forEach(n=>{
@@ -647,10 +665,6 @@ function updateCacheTtl(){
 }
 
 // ══ VIEWER ══
-let vAll=[],vSortK='key',vSortA=true,vProj='',vBoard='',vEpic='',vStatCat='',vJql='';
-let selectedKeys=new Set();
-let lastCached=false;
-const visCols=new Set(['type','status','priority','assignee','reporter','duedate','updated']);
 
 function toggleCol(btn){
   const col=btn.dataset.col;
@@ -828,9 +842,6 @@ function vUpdateStats(){
 let _debounceT=null;
 function vApplyDebounced(){clearTimeout(_debounceT);_debounceT=setTimeout(vApply,300);}
 
-// Multi-sort state (item 7)
-let sortKeys=[{k:'key',a:true}]; // array of {k,a}
-
 function vApply(){
   const kw=document.getElementById('f-kw').value.trim().toLowerCase();
   const stat=document.getElementById('f-stat').value;
@@ -993,7 +1004,6 @@ function vExport(){
 }
 
 // ── Batch select (item 12) ──
-let vMeta={assignees:[],transitions:[]};
 
 function toggleSel(key,cb){
   if(cb.checked) selectedKeys.add(key); else selectedKeys.delete(key);
@@ -1086,8 +1096,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('#notifBtn')&&!e.target.closest('#notifPanel')) document.getElementById('notifPanel').classList.remove('show');
 });
 
-// ── History (item 23) ──
-let history=JSON.parse(localStorage.getItem('jira_history')||'[]');
+// ── History ──
 function addHistory(action,detail,key){
   history.unshift({action,detail,key,time:new Date().toLocaleString('zh-TW')});
   if(history.length>50) history=history.slice(0,50);
@@ -1106,7 +1115,6 @@ function toggleHist(){document.getElementById('histPanel').classList.toggle('sho
 function clearHistory(){history=[];localStorage.removeItem('jira_history');renderHistory();}
 
 // ── Modal ──
-let curModalKey='';
 
 function extractText(doc){
   if(!doc) return '';
@@ -1324,9 +1332,6 @@ function closeModal(){document.getElementById('modalOv').classList.add('hidden')
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
 
 // ══ CREATOR ══
-let cMeta={issueTypes:[],priorities:[],assignees:[]},cSP='',cSB='',cSE='',cRowId=0;
-let createdKeys=[];
-let pendingImport=[];
 
 async function cLoadProjects(){
   try{
@@ -1585,7 +1590,6 @@ document.addEventListener('keydown',e=>{
 });
 
 // ── Expand row preview (item 9) ──
-let expandedKeys=new Set();
 function toggleExpand(key){
   const tr=document.getElementById('tr-'+key);
   if(!tr) return;
@@ -1692,7 +1696,6 @@ function inlineEditDue(key,el){
 }
 
 // ── Modal navigation (item 13) ──
-let modalList=[];
 let modalIdx=0;
 function openModal(key){
   // Build nav list from current filtered rows
@@ -1726,7 +1729,6 @@ async function _openModal(key){
 }
 
 // ── Notification: read state & clickable (item 2, 3) ──
-let notifRead=new Set(JSON.parse(localStorage.getItem('notif_read')||'[]'));
 function vCheckNotif(){
   const dueSoon=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate>=today&&i.duedate<=soon&&i.statusCat!=='done');
   const overdue=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done');
@@ -1759,7 +1761,6 @@ function markAllNotifRead(){
 }
 
 // ── Saved filters (item 8) ──
-let savedFilters=JSON.parse(localStorage.getItem('jira_saved_filters')||'[]');
 function saveCurrentFilter(){
   const name=prompt('請輸入篩選名稱：');
   if(!name) return;
@@ -1859,7 +1860,6 @@ function updateCacheInfo(cached){
 }
 
 // ── Clone ticket (item 16) ──
-let cloneSrcKey='';
 function showCloneModal(key){
   cloneSrcKey=key;
   document.getElementById('cloneSrcKey').textContent=key;
@@ -1886,7 +1886,6 @@ async function doClone(){
 document.getElementById('cloneModal').addEventListener('click',e=>{if(e.target===document.getElementById('cloneModal'))document.getElementById('cloneModal').classList.add('hidden');});
 
 // ── Named draft manager (item 14) ──
-let drafts=JSON.parse(localStorage.getItem('jira_drafts_v2')||'[]');
 function cSaveDraft(){
   const name=prompt('草稿名稱：',`草稿 ${new Date().toLocaleString('zh-TW')}`);
   if(!name) return;
