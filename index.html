@@ -2372,7 +2372,7 @@ function extractText(doc){
   return walk(doc).trim();
 }
 
-function renderModal(issue,transitions,meta){
+function _renderModalBase(issue,transitions,meta){
   const f=issue.fields||{};
   const desc=extractText(f.description);
   const comments=(f.comment?.comments||[]).slice(-5).reverse();
@@ -2548,6 +2548,142 @@ function renderModal(issue,transitions,meta){
     setupAttachUpload(issue.key);
   },50);
 }
+
+// ── Unified renderModal (replaces all broken override chain) ──
+function renderModal(issue,transitions,meta){
+  const iKey=issue?.key||curModalKey;
+  // Call base rendering
+  _renderModalBase(issue,transitions,meta);
+  debugLog('info',`Modal opened: ${iKey}`);
+  trackUsage('openModal');
+  setTimeout(()=>{
+    // Wire up button click handlers
+    const iKey2=issue?.key||'';
+    const totalComments=issue?.fields?.comment?.total||0;
+    const moreDiv=document.getElementById('m-load-more-comments');
+    if(moreDiv&&totalComments>5){
+      moreDiv.innerHTML=`<button onclick="loadAllComments(curModalKey)" style="margin:10px 0;padding:5px 14px;border:1px solid var(--bdr);border-radius:5px;cursor:pointer;font-size:11px;background:transparent;font-family:'Inter',sans-serif;color:var(--dim)">載入全部 ${totalComments} 則留言</button>`;
+    }
+    const clBtn=document.getElementById('mChangelogLoadBtn');
+    if(clBtn)clBtn.onclick=()=>loadChangelog(iKey2);
+    const wBtn=document.getElementById('mWatchersLoadBtn');
+    if(wBtn)wBtn.onclick=()=>loadWatchers(iKey2,'');
+
+    // Render comments list
+    const f=issue?.fields||{};
+    const comments=(f.comment?.comments||[]).slice(-5).reverse();
+    const commentsList=document.getElementById('m-comments-list');
+    if(commentsList&&comments?.length){
+      commentsList.innerHTML=comments.map(cm=>{
+        const author=cm.author?.displayName||'?';
+        const date=cm.created?.slice(0,10)||'';
+        const text=extractText(cm.body);
+        const shortText=text.slice(0,400).replace(/</g,'&lt;')+(text.length>400?'...':'');
+        const btn=`<button data-author="${author.replace(/"/g,'&quot;')}" data-text="${text.slice(0,200).replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" onclick="quoteReply(this.dataset.author,this.dataset.text)" style="padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;font-size:10px;cursor:pointer;color:var(--muted);font-family:'Inter',sans-serif;margin-top:4px">↩ 回覆引用</button>`;
+        return `<div class="mcomment"><div><span class="mcomment-author">${author}</span><span class="mcomment-date">${date}</span></div><div class="mcomment-text">${shortText}</div>${btn}</div>`;
+      }).join('');
+    }
+
+    // Add time tracking and related tabs
+    const tabs=document.querySelector('.mt-tab[data-tab="attachments"]');
+    if(tabs){
+      if(!document.querySelector('.mt-tab[data-tab="timetrack"]')){
+        tabs.insertAdjacentHTML('afterend',`
+          <button class="mt-tab" data-tab="timetrack" onclick="switchModalTab('timetrack',this);loadTimeTracking(curModalKey)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">⏱ 估時</button>
+          <button class="mt-tab" data-tab="related" onclick="switchModalTab('related',this);loadRelatedTickets(curModalKey)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">🔗 相關</button>
+        `);
+      }
+    }
+    const mBody=document.getElementById('mBody');
+    if(mBody){
+      if(!document.getElementById('mt-timetrack')){
+        mBody.insertAdjacentHTML('beforeend',`
+          <div id="mt-timetrack" class="mt-content" style="display:none"><div class="msec"><div class="msec-title">時間追蹤</div><div id="m-timetrack">請點選「⏱ 估時」tab 載入</div></div></div>
+          <div id="mt-related" class="mt-content" style="display:none"><div class="msec"><div class="msec-title">同 Epic 相關 Tickets</div><div id="m-related">請點選「🔗 相關」tab 載入</div></div></div>
+        `);
+      }
+      // Add activity tab
+      if(!document.querySelector('.mt-tab[data-tab="activity"]')){
+        const wlTab=document.querySelector('.mt-tab[data-tab="worklog"]')||document.querySelector('.mt-tab[data-tab="gittools"]');
+        const insertAfter=wlTab||document.querySelector('.mt-tab[data-tab="related"]');
+        if(insertAfter){
+          insertAfter.insertAdjacentHTML('afterend',`<button class="mt-tab" data-tab="activity" onclick="switchModalTab('activity',this);loadActivityFeed(curModalKey)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">📰 動態</button>`);
+        }
+      }
+      if(!document.getElementById('mt-activity')){
+        mBody.insertAdjacentHTML('beforeend',`<div id="mt-activity" class="mt-content" style="display:none"><div class="msec"><div class="msec-title">完整活動記錄</div><div id="m-activity-content">請點選「📰 動態」tab 載入</div></div></div>`);
+      }
+      // Add PR section
+      if(!document.getElementById('m-linked-pr')){
+        const detTab=document.getElementById('mt-details');
+        if(detTab) detTab.insertAdjacentHTML('beforeend',`<div class="msec"><div class="msec-title">🔀 Linked PR <button onclick="loadLinkedPR(curModalKey)" style="font-size:10px;color:var(--acc);border:none;background:none;cursor:pointer;margin-left:6px">載入</button></div><div id="m-linked-pr" style="font-size:11px;color:var(--muted)">點擊「載入」查看</div></div>`);
+      }
+      // Subtask progress
+      if(f.subtasks?.length&&!document.getElementById('m-sub-progress')){
+        const mHdr=mBody.previousElementSibling;
+        if(mHdr){const div=document.createElement('div');div.id='m-sub-progress';div.style.cssText='padding:0 20px 8px;';mHdr.after(div);renderSubtaskProgressInModal(f.subtasks);}
+      }
+      // Similar tickets
+      if(f.summary&&!document.getElementById('m-similar')){
+        const similar=findSimilarTickets(iKey2,f.summary);
+        if(similar.length){
+          const detTab2=document.getElementById('mt-details');
+          if(detTab2){const div=document.createElement('div');div.className='msec';div.id='m-similar';div.innerHTML=`<div class="msec-title">🔍 相似 Tickets</div><div>${similar.map(s=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:11px;cursor:pointer" onclick="openModal('${s.key}')"><a style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--acc);font-weight:500;flex-shrink:0">${s.key}</a><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)">${s.summary}</span></div>`).join('')}</div>`;detTab2.insertAdjacentElement('beforeend',div);}
+        }
+      }
+    }
+    // Add modal header buttons
+    const mHdr=document.getElementById('mBody')?.previousElementSibling;
+    if(mHdr){
+      if(!document.getElementById('mNotifyBtn')){const b=document.createElement('button');b.id='mNotifyBtn';b.className='modal-clone-btn';b.textContent='📧 通知';b.onclick=()=>sendNotification(curModalKey);mHdr.insertBefore(b,document.getElementById('mCloneBtn')||document.querySelector('.modal-close'));}
+      if(!document.getElementById('mScreenshotBtn')){const b=document.createElement('button');b.id='mScreenshotBtn';b.className='modal-clone-btn';b.textContent='📷 截圖';b.onclick=screenshotModal;mHdr.insertBefore(b,document.querySelector('.modal-close'));}
+      if(!document.getElementById('mPrintBtn')){const b=document.createElement('button');b.id='mPrintBtn';b.className='modal-clone-btn';b.textContent='🖨 列印';b.onclick=printModal;mHdr.insertBefore(b,document.querySelector('.modal-close'));}
+      if(!document.getElementById('mCompareBtn')){const b=document.createElement('button');b.id='mCompareBtn';b.className='modal-clone-btn';b.textContent='⊟ 分割比較';b.onclick=()=>{const k2=prompt('輸入第二個 ticket Key：');if(k2)openCompareView(iKey2,k2.trim().toUpperCase());};mHdr.insertBefore(b,document.querySelector('.modal-close'));}
+    }
+    // Reply template button
+    const commentForm=document.querySelector('#mt-comments .mform');
+    if(commentForm&&!document.getElementById('replyTplBtn')){
+      const btn=document.createElement('button');btn.id='replyTplBtn';btn.type='button';btn.className='mform-btn';
+      btn.style.cssText='background:var(--surf3);color:var(--dim);border:1px solid var(--bdr)';
+      btn.textContent='📝 範本';btn.onclick=showReplyTemplates;
+      const row=commentForm.querySelector('.mform-row');if(row)row.insertBefore(btn,row.firstChild);
+    }
+    // Typing indicator
+    const cl2=document.getElementById('m-comments-list');
+    if(cl2)renderTypingIndicator('m-comments-list');
+    // RTE table button
+    const rteToolbar=document.querySelector('.rte-toolbar');
+    if(rteToolbar&&!document.getElementById('rteTableBtn')){
+      const btn=document.createElement('button');btn.id='rteTableBtn';btn.className='rte-btn';btn.type='button';
+      btn.textContent='⊞';btn.title='插入表格';btn.onclick=()=>{const r=parseInt(prompt('行數：','3')||3);const cols=parseInt(prompt('欄數：','3')||3);insertTableToRTE(r,cols);};
+      rteToolbar.appendChild(btn);
+    }
+    // Sprint change
+    addSprintToModal(iKey2,f.customfield_10020?.name||f.sprint?.name||'');
+    // Epic info
+    const epicKey=f.customfield_10014||'';
+    if(epicKey){
+      const epicDiv=document.createElement('div');epicDiv.className='msec';
+      epicDiv.innerHTML=`<div class="msec-title">⚡ Epic</div><div style="font-size:12px"><a href="https://${JIRA_DOMAIN}/browse/${epicKey}" target="_blank" style="color:var(--acc)">${epicKey}</a></div>`;
+      document.getElementById('mt-details')?.insertAdjacentElement('afterbegin',epicDiv);
+    }
+    // Attach upload
+    setupAttachUpload(iKey2);
+    // Mermaid render in description
+    const descEl=document.getElementById('m-desc');
+    if(descEl&&descEl.value?.includes('```mermaid')){
+      renderMermaidInDesc(descEl.value).then(rendered=>{
+        if(rendered!==descEl.value){
+          const pd=document.createElement('div');pd.style.cssText='border:1px solid var(--bdr);border-radius:6px;padding:10px;margin-top:8px;background:var(--surf3)';
+          pd.innerHTML=`<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px">MERMAID 預覽</div>${rendered}`;
+          descEl.insertAdjacentElement('afterend',pd);
+        }
+      });
+    }
+    setupModalMentionComplete();
+  },150);
+}
+
 
 // ── Modal tab switching ──
 function switchModalTab(tab, btn){
@@ -4105,11 +4241,8 @@ async function applyDashFilter(idx){
   vStatCat=pin.statCat||'';vApply();
 }
 
-// ── Update switchTab for dashboard ──
-const _origSwitchTab=switchTab;
 
-// ── Update vApply to use date ranges, multi-keyword, exclude ──
-const _origVApply=vApply;
+
 
 // ── Add relative time to table ──
 function fmtDRelative(d,isDone){
@@ -4129,7 +4262,6 @@ function addToCreatorBtn(){
 }
 
 // Override updateBatchBar to add creator button
-const _origUpdateBatchBar=updateBatchBar;
 
 // ── Override applyBatch to use progress version ──
 async function applyBatch(){
@@ -4564,8 +4696,6 @@ function toggleShortcuts(){document.getElementById('shortcutsModal')?.classList.
 // ── Extended keyboard shortcuts (G+key tab navigation) ──
 let _gPressed=false;let _gTimer=null;
 
-// ── Update switchTab for timeline ──
-const _origSwitchTabV15=switchTab;
 
 // ── Override vFetch to use IndexedDB cache ──
 const _origVFetch=vFetch;
@@ -4649,50 +4779,10 @@ async function vFetch(){
   btn.disabled=false;btn.classList.remove('loading');
 }
 
-// ── Override vApply to add component/version/multi-value filters ──
-const _origVApplyV15=vApply;
+
 
 // ── Update renderModal to add time tracking, related, notify button ──
-const _origRenderModal=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModal(issue,transitions,meta);
-  // After render, add time tracking and related tabs via mutation
-  setTimeout(()=>{
-    const tabs=document.querySelector('.mt-tab[data-tab="attachments"]');
-    if(!tabs) return;
-    // Add Time tab
-    if(!document.querySelector('.mt-tab[data-tab="timetrack"]')){
-      tabs.insertAdjacentHTML('afterend',`
-        <button class="mt-tab" data-tab="timetrack" onclick="switchModalTab('timetrack',this);loadTimeTracking(curModalKey)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">⏱ 估時</button>
-        <button class="mt-tab" data-tab="related" onclick="switchModalTab('related',this);loadRelatedTickets(curModalKey)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">🔗 相關</button>
-      `);
-    }
-    // Add timetrack and related tab content areas
-    const mBody=document.getElementById('mBody');
-    if(mBody&&!document.getElementById('mt-timetrack')){
-      mBody.insertAdjacentHTML('beforeend',`
-        <div id="mt-timetrack" class="mt-content" style="display:none">
-          <div class="msec"><div class="msec-title">時間追蹤</div><div id="m-timetrack">請點選「⏱ 估時」tab 載入</div></div>
-        </div>
-        <div id="mt-related" class="mt-content" style="display:none">
-          <div class="msec"><div class="msec-title">同 Epic 相關 Tickets</div><div id="m-related">請點選「🔗 相關」tab 載入</div></div>
-        </div>
-      `);
-    }
-    // Add notify button to modal header area
-    const mHdr=document.getElementById('mBody')?.previousElementSibling;
-    if(mHdr&&!document.getElementById('mNotifyBtn')){
-      const notifyBtn=document.createElement('button');
-      notifyBtn.id='mNotifyBtn';notifyBtn.className='modal-clone-btn';
-      notifyBtn.textContent='📧 通知';notifyBtn.title='發送 Email 通知';
-      notifyBtn.onclick=()=>sendNotification(issue.key);
-      mHdr.insertBefore(notifyBtn,document.getElementById('mCloneBtn')||document.querySelector('.modal-close'));
-    }
-    // Add reporter edit option
-    const reporterField=document.querySelector('#mt-details .mfield');
-    // Reporter edit handled via existing modal fields
-  },100);
-}
+
 
 // ── Add template panel to creator ──
 function addTemplateToCreator(){
@@ -4752,8 +4842,7 @@ document.head.appendChild(favStyle);
 
 // ── 1. Request throttling with AbortController ──
 let _fetchAbortCtrl=null;
-const _origVFetchInner=vFetch;
-// Wrap vFetch with abort support (applied inline in new vFetch)
+// vFetch abort support (applied inline)
 
 // ── 2. DocumentFragment DOM batching ──
 function vRenderTableFast(data){
@@ -5110,13 +5199,15 @@ function unlockModal(){
   document.getElementById('modalLockBadge')?.classList.remove('show');
 }
 // Prevent reopening locked modal
-const _origOpenModalLock=openModal;
+// openModal: unified (lock guard + recent)
 function openModal(key){
   if(_modalLocked&&curModalKey&&curModalKey!==key){
     if(!confirm(`Modal 正在編輯 ${curModalKey}，確定要切換到 ${key}？`)){return;}
     unlockModal();
   }
-  _origOpenModalLock(key);
+  const item=vAll.find(i=>i.key===key);
+  if(item)addToRecent(key,item.summary);
+  _openModal(key);
 }
 // Auto-lock when user starts editing
 document.addEventListener('input',e=>{
@@ -5177,46 +5268,7 @@ function setupSSE(){
 }
 
 // ── Override renderModal to add activity tab, sprint, screenshot, template reply ──
-const _origRenderModalV17=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalV17(issue,transitions,meta);
-  const iKey=issue?.key||curModalKey;
-  setTimeout(()=>{
-    // Add Activity tab (📰 動態)
-    if(!document.querySelector('.mt-tab[data-tab="activity"]')){
-      const wlTab=document.querySelector('.mt-tab[data-tab="worklog"]')||document.querySelector('.mt-tab[data-tab="gittools"]');
-      const insertAfter=wlTab||document.querySelector('.mt-tab[data-tab="related"]');
-      if(insertAfter){
-        insertAfter.insertAdjacentHTML('afterend',`<button class="mt-tab" data-tab="activity" onclick="switchModalTab('activity',this);loadActivityFeed(curModalKey)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">📰 動態</button>`);
-      }
-    }
-    const mBody=document.getElementById('mBody');
-    if(mBody&&!document.getElementById('mt-activity')){
-      mBody.insertAdjacentHTML('beforeend',`
-        <div id="mt-activity" class="mt-content" style="display:none">
-          <div class="msec"><div class="msec-title">完整活動記錄（留言 + 欄位變更）</div><div id="m-activity-content">請點選「📰 動態」tab 載入</div></div>
-        </div>`);
-    }
-    // Add sprint change to details
-    addSprintToModal(iKey,issue?.fields?.customfield_10020?.name||issue?.fields?.sprint?.name||'');
-    // Add reply template button to comment form
-    const commentForm=document.querySelector('#mt-comments .mform');
-    if(commentForm&&!document.getElementById('replyTplBtn')){
-      const btn=document.createElement('button');btn.id='replyTplBtn';btn.type='button';btn.className='mform-btn';
-      btn.style.background='var(--surf3)';btn.style.color='var(--dim)';btn.style.border='1px solid var(--bdr)';
-      btn.textContent='📝 範本';btn.onclick=showReplyTemplates;
-      const row=commentForm.querySelector('.mform-row');if(row)row.insertBefore(btn,row.firstChild);
-    }
-    // Add screenshot button to modal header
-    const mHdr=document.getElementById('mBody')?.previousElementSibling;
-    if(mHdr&&!document.getElementById('mScreenshotBtn')){
-      const btn=document.createElement('button');btn.id='mScreenshotBtn';btn.className='modal-clone-btn';
-      btn.textContent='📷 截圖';btn.onclick=screenshotModal;
-      mHdr.insertBefore(btn,document.getElementById('mCloneBtn')||document.querySelector('.modal-close'));
-    }
-    unlockModal();
-  },120);
-}
+
 
 // ── Add "從 Key 填入" button to creator row ──
 function addFillFromKeyBtn(){
@@ -5796,58 +5848,10 @@ async function aiApplyTransition(key,status){
 }
 
 // ── Override renderModal to add dep graph, git tools, RTE ──
-const _origRenderModalV18=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalV18(issue,transitions,meta);
-  const iKey=issue?.key||curModalKey;
-  const f=issue?.fields||{};
-  setTimeout(()=>{
-    // Add dependency graph section
-    const linksSection=document.getElementById('mt-details');
-    if(linksSection&&!document.getElementById('m-dep-graph')){
-      linksSection.insertAdjacentHTML('beforeend',`<div class="msec">
-        <div class="msec-title">Dependency Graph</div>
-        <div id="m-dep-graph" class="dep-graph-wrap"><span style="color:var(--muted);font-size:11px">載入中...</span></div>
-      </div>`);
-      renderDepGraph(f.issuelinks||[],iKey);
-    }
-    // Add git tools tab
-    if(!document.querySelector('.mt-tab[data-tab="gittools"]')){
-      const actTab=document.querySelector('.mt-tab[data-tab="activity"]');
-      if(actTab){
-        actTab.insertAdjacentHTML('afterend',`<button class="mt-tab" data-tab="gittools" onclick="switchModalTab('gittools',this)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">🔀 Git</button>`);
-        document.getElementById('mBody')?.insertAdjacentHTML('beforeend',`
-          <div id="mt-gittools" class="mt-content" style="display:none">
-            <div class="msec">
-              <div class="msec-title">Git Commit Message</div>
-              <div style="background:var(--surf3);border:1px solid var(--bdr);border-radius:6px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);margin-bottom:8px;user-select:all" id="m-git-commit">${genGitCommit(iKey,f.summary||'',f.issuetype?.name||'Task')}</div>
-              <button onclick="navigator.clipboard.writeText(document.getElementById('m-git-commit').textContent).then(()=>this.textContent='✅ 已複製').catch(()=>{})" style="padding:4px 10px;border:1px solid var(--bdr);border-radius:5px;background:transparent;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">📋 複製</button>
-            </div>
-            <div class="msec">
-              <div class="msec-title">PR Description</div>
-              <textarea id="m-pr-desc" style="width:100%;height:220px;border:1px solid var(--bdr);border-radius:6px;padding:9px 12px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text);resize:vertical;outline:none;line-height:1.6" readonly>${genPRDescription(iKey,f.summary||'',extractText(f.description))}</textarea>
-              <button onclick="navigator.clipboard.writeText(document.getElementById('m-pr-desc').value).then(()=>this.textContent='✅ 已複製').catch(()=>{})" style="padding:4px 10px;border:1px solid var(--bdr);border-radius:5px;background:transparent;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;margin-top:6px">📋 複製 PR Description</button>
-            </div>
-          </div>`);
-      }
-    }
-    // Setup subtask drag sort
-    setupSubtaskSort();
-    // Add direct reply buttons to comments
-    document.querySelectorAll('#m-comments-list .mcomment').forEach(el=>{
-      if(el.querySelector('.direct-reply-btn')) return;
-      const author=el.querySelector('.mcomment-author')?.textContent||'';
-      const text=el.querySelector('.mcomment-text')?.textContent||'';
-      const btn=document.createElement('button');btn.className='direct-reply-btn';
-      btn.style.cssText='padding:2px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;font-size:10px;cursor:pointer;color:var(--muted);margin-top:4px;font-family:"Inter",sans-serif;display:block';
-      btn.textContent='↩ 直接回覆';btn.onclick=()=>directReply(null,author,text);
-      el.appendChild(btn);
-    });
-  },150);
-}
+
 
 // ── Override vApply to support group-by ──
-const _origVApplyV18=vApply;
+
 
 // ── Also add velocity + export PNG to chart modal ──
 function addChartModalButtons(){
@@ -6225,12 +6229,7 @@ function renderRecentPanel(){
 function clearRecent(){recentlyViewed=[];localStorage.removeItem('jira_recent');renderRecentPanel();}
 document.addEventListener('click',e=>{if(!e.target.closest('#recentPanel')&&!e.target.closest('#recentBtn'))document.getElementById('recentPanel')?.classList.remove('show');});
 // Hook into openModal to track recent views
-const _origOpenModalRecent=openModal;
-function openModal(key){
-  const item=vAll.find(i=>i.key===key);
-  if(item)addToRecent(key,item.summary);
-  _origOpenModalRecent(key);
-}
+
 
 // ── 23. API Token expiry detection ──
 function setupTokenExpiryDetection(){
@@ -6308,8 +6307,7 @@ function showTourStep(){
 function nextTourStep(){_tourIdx++;showTourStep();}
 function endTour(){document.getElementById('tourHighlight').style.display='none';document.getElementById('tourPopup').style.display='none';localStorage.setItem('jira_tour_done','1');}
 
-// ── Override vApply final to update sort indicators, export sel btn, and use enhanced render ──
-const _origVApplyFinal=vApply;
+
 
 // ── Override updateBatchBar to also update export selected btn ──
 const _origUpdateBatchBarFinal=updateBatchBar;
@@ -6320,8 +6318,7 @@ function updateBatchBar(){
   if(expBtn){expBtn.style.display=n>0?'inline-flex':'none';if(expCount)expCount.textContent=n;}
 }
 
-// ── Override cRenderResult to use enhanced version ──
-const _origCRenderResult=cRenderResult;
+// ── cRenderResult enhanced inline ──
 
 // ── Quick add row ──
 function addQuickAddRow(){
@@ -6369,35 +6366,7 @@ async function submitQuickAdd(){
 }
 
 // ── Override renderModal to add timeline summary, CC notify, and precise countdown ──
-const _origRenderModalFinal=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalFinal(issue,transitions,meta);
-  const iKey=issue?.key||curModalKey;
-  const f=issue?.fields||{};
-  setTimeout(()=>{
-    // Add timeline summary to details
-    const detailsTab=document.getElementById('mt-details');
-    if(detailsTab&&!document.getElementById('m-timeline-sum')){
-      const events=buildTimelineSummary(issue);
-      if(events.length){
-        const div=document.createElement('div');div.className='msec';div.id='m-timeline-sum';
-        div.innerHTML=`<div class="msec-title">⏱ 時間軸</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${events.map(ev=>`<div style="display:flex;align-items:center;gap:4px;font-size:11px"><span>${ev.icon}</span><span style="font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:10px">${ev.ts}</span><span style="color:var(--dim)">${ev.label}</span></div>`).join('<span style="color:var(--bdr2)">→</span>')}</div>`;
-        detailsTab.insertAdjacentElement('afterbegin',div);
-      }
-    }
-    // Override notify button to use CC version
-    const notifyBtn=document.getElementById('mNotifyBtn');
-    if(notifyBtn) notifyBtn.onclick=()=>sendNotificationWithCC(iKey);
-    // Add precise due date display
-    const dueField=document.getElementById('m-due');
-    if(dueField&&f.duedate){
-      const{precise}=fmtPreciseCountdown(f.duedate,f.status?.statusCategory?.key==='done');
-      if(precise&&!dueField.nextElementSibling?.classList.contains('due-precise')){
-        const span=document.createElement('span');span.className='due-precise';span.textContent=precise;dueField.insertAdjacentElement('afterend',span);
-      }
-    }
-  },200);
-}
+
 
 // ══ NEW FEATURES — FINAL BATCH ══
 
@@ -6928,50 +6897,7 @@ async function checkForUpdates(){
 }
 
 // ── Override renderModal to add reactions, confluence, split compare ──
-const _origRenderModalV19=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalV19(issue,transitions,meta);
-  const iKey=issue?.key||curModalKey;
-  const f=issue?.fields||{};
-  setTimeout(async()=>{
-    // Add reactions section to comments tab
-    const commentsList=document.getElementById('m-comments-list');
-    if(commentsList&&!document.getElementById('m-reactions')){
-      const reactDiv=document.createElement('div');reactDiv.id='m-reactions';reactDiv.style.cssText='padding:8px 0;border-bottom:1px solid var(--bdr);margin-bottom:8px';
-      reactDiv.innerHTML=`<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">REACTIONS</div><div id="m-reaction-bar">載入中...</div>`;
-      commentsList.insertAdjacentElement('beforebegin',reactDiv);
-      const reactions=await loadReactions(iKey);
-      renderReactionBar(iKey,reactions,'m-reaction-bar');
-    }
-    // Add Confluence links to details tab
-    const detailsTab=document.getElementById('mt-details');
-    if(detailsTab&&!document.getElementById('m-confluence')){
-      const confDiv=document.createElement('div');confDiv.className='msec';
-      confDiv.innerHTML=`<div class="msec-title">Confluence 文件 <button onclick="loadConfluenceLinks(curModalKey)" style="font-size:10px;color:var(--acc);border:none;background:none;cursor:pointer;margin-left:6px;font-family:'Inter',sans-serif">載入</button></div><div id="m-confluence" style="font-size:11px;color:var(--muted)">點擊「載入」查看</div>`;
-      detailsTab.insertAdjacentElement('beforeend',confDiv);
-    }
-    // Add "比較" button to modal header
-    const mHdr=document.getElementById('mBody')?.previousElementSibling;
-    if(mHdr&&!document.getElementById('mCompareBtn')){
-      const btn=document.createElement('button');btn.id='mCompareBtn';btn.className='modal-clone-btn';
-      btn.textContent='⊟ 分割比較';btn.onclick=()=>{
-        const key2=prompt('輸入第二個 ticket Key 進行比較：');
-        if(key2) openSplitModal(iKey,key2.trim().toUpperCase());
-      };
-      mHdr.insertBefore(btn,document.querySelector('.modal-close'));
-    }
-    // Apply avatars in modal
-    const asgnSel=document.getElementById('m-asgn');
-    if(asgnSel){
-      [...asgnSel.options].forEach(opt=>{
-        if(opt.value&&opt.textContent&&!opt.textContent.startsWith('●')){
-          const avatar=makeAvatarEl(opt.textContent,14);
-          // We can't inject HTML into option easily, skip for select
-        }
-      });
-    }
-  },200);
-}
+
 
 // ── Add keyboard shortcut for Ctrl+K ──
 const _origExtKb=setupExtendedKbShortcuts;
@@ -7001,7 +6927,7 @@ function setupExtendedKbShortcuts(){
 }
 
 // ── Override vApply final v19 to inject avatars ──
-const _origVApplyV19=vApply;
+
 
 // ══ NEW FEATURES — ULTIMATE FINAL BATCH ══
 
@@ -7558,34 +7484,11 @@ async function refreshHealth(){
   }catch(e){grid.innerHTML=`<div style="grid-column:1/-1;color:var(--danger);padding:20px">連線失敗：${e.message}</div>`;}
 }
 
-// ── Override switchTab for health page ──
-const _origSwitchTabFinal=switchTab;
 
 // ── Override renderModal to add worklog, votes, and image drop ──
-const _origRenderModalFinalV21=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalFinalV21(issue,transitions,meta);
-  const iKey=issue?.key||curModalKey;
-  const f=issue?.fields||{};
-  setTimeout(()=>{
-    // Add worklog tab
-    const gitTab=document.querySelector('.mt-tab[data-tab="gittools"]');
-    if(gitTab&&!document.querySelector('.mt-tab[data-tab="worklog"]')){
-      gitTab.insertAdjacentHTML('afterend',`<button class="mt-tab" data-tab="worklog" onclick="switchModalTab('worklog',this);loadWorkLog(curModalKey)" style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;font-family:'Inter',sans-serif">⏱ 工時</button>`);
-      document.getElementById('mBody')?.insertAdjacentHTML('beforeend',`<div id="mt-worklog" class="mt-content" style="display:none"><div class="msec"><div class="msec-title">Work Log</div><div id="m-worklog-content">請點「⏱ 工時」tab</div></div></div>`);
-    }
-    // Add vote button to modal header
-    const mHdr=document.getElementById('mBody')?.previousElementSibling;
-    if(mHdr&&!document.getElementById('mVoteBtn')){
-      const btn=document.createElement('button');btn.id='mVoteBtn';btn.className='modal-clone-btn';
-      btn.textContent='👍 投票';btn.title='對此 ticket 投票';btn.onclick=()=>toggleVote(iKey);
-      mHdr.insertBefore(btn,document.querySelector('.modal-close'));
-    }
-  },180);
-}
 
-// ── Override vApply to use RAF rendering ──
-const _origVApplyFinalV21=vApply;
+
+
 
 // ══ ULTIMATE FINAL BATCH — All remaining features ══
 
@@ -8099,35 +8002,30 @@ function addLocaleSelector(){
 // ── 25. Changelog page ──
 
 // ── Override switchTab for help + changelog ──
-const _origSwitchTabUlt=switchTab;
+// ── Unified switchTab (replaces all broken override chain) ──
 function switchTab(t){
-  _origSwitchTabUlt(t);
-  ['help','changelog'].forEach(pg=>{
-    const el=document.getElementById(`page-${pg}`);if(el)el.style.display=t===pg?'block':'none';
-    const tab=document.getElementById(`tab-${pg}`);if(tab)tab.classList.toggle('active',t===pg);
+  // 1. Hide all pages
+  document.querySelectorAll('.page').forEach(p=>{
+    p.style.display='none';p.classList.remove('active');
   });
-  if(t==='help') renderHelpPage();
-  if(t==='changelog') renderChangelog();
-  if(t==='kanban') setTimeout(applyKbDueColors,300);
+  // 2. Show target page
+  const target=document.getElementById('page-'+t);
+  if(target){target.style.display='block';target.classList.add('active');}
+  // 3. Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active',b.id==='tab-'+t);
+  });
+  // 4. Tab-specific actions
+  if(t==='kanban'){if(typeof renderKanban==='function')renderKanban();setTimeout(applyKbDueColors,300);}
+  if(t==='dashboard'){if(typeof renderDashboard==='function')renderDashboard();}
+  if(t==='timeline'){if(typeof renderTimeline==='function')renderTimeline();}
+  if(t==='health'){setTimeout(()=>{if(typeof refreshHealth==='function')refreshHealth();},100);}
+  if(t==='help'){if(typeof renderHelpPage==='function')renderHelpPage();}
+  if(t==='changelog'){if(typeof renderChangelog==='function')renderChangelog();}
 }
 
 // ── Override renderModal to add similar tickets, mermaid, print ──
-const _origRenderModalUlt=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalUlt(issue,transitions,meta);
-  // Ult: add copy draft, similar tickets display enhancement
-  const iKey=issue?.key||curModalKey;
-  setTimeout(()=>{
-    // Add "比較" button if not already added
-    const mHdr=document.getElementById('mBody')?.previousElementSibling;
-    if(mHdr&&!document.getElementById('mCompareBtn')){
-      const btn=document.createElement('button');btn.id='mCompareBtn';btn.className='modal-clone-btn';
-      btn.textContent='⊟ 分割比較';
-      btn.onclick=()=>{const k2=prompt('輸入第二個 ticket Key 進行比較：');if(k2)openCompareView(iKey,k2.trim().toUpperCase());};
-      mHdr.insertBefore(btn,document.querySelector('.modal-close'));
-    }
-  },200);
-}
+
 
 // ── Add auto-open and watcher buttons to Creator result ──
 function enhanceCreatorResult(){
@@ -8141,7 +8039,7 @@ function enhanceCreatorResult(){
 }
 
 // ── Override vApply - minimal wrapper to add debug logging ──
-const _origVApplyUlt=vApply;
+
 
 // ══ BATCH 6 — FINAL COMPLETE ROUND ══
 
@@ -8633,41 +8531,10 @@ async function shareWithShortUrl(){
 }
 
 // ── Override vApply final — add fuzzy, pinned rows, usage tracking ──
-const _origVApplyFinalV22=vApply;
+
 
 // ── Override renderModal final — add PR status, subtask progress, typing indicator, RTE table ──
-const _origRenderModalFinalV22=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalFinalV22(issue,transitions,meta);
-  const iKey=issue?.key||curModalKey;
-  const f=issue?.fields||{};
-  trackUsage('openModal');
-  setTimeout(()=>{
-    // Add subtask progress in modal header
-    if(f.subtasks?.length){
-      const mHdr=document.getElementById('mBody')?.previousElementSibling;
-      if(mHdr&&!document.getElementById('m-sub-progress')){
-        const div=document.createElement('div');div.id='m-sub-progress';div.style.cssText='padding:0 20px 8px;';
-        mHdr.after(div);renderSubtaskProgressInModal(f.subtasks);
-      }
-    }
-    // Add PR section to details
-    const detTab=document.getElementById('mt-details');
-    if(detTab&&!document.getElementById('m-linked-pr')){
-      detTab.insertAdjacentHTML('beforeend',`<div class="msec"><div class="msec-title">🔀 Linked PR <button onclick="loadLinkedPR(curModalKey)" style="font-size:10px;color:var(--acc);border:none;background:none;cursor:pointer;margin-left:6px">載入</button></div><div id="m-linked-pr" style="font-size:11px;color:var(--muted)">點擊「載入」查看</div></div>`);
-    }
-    // Add typing indicator to comment section
-    const commentsList=document.getElementById('m-comments-list');
-    if(commentsList)renderTypingIndicator('m-comments-list');
-    // Add RTE table button to toolbar
-    const rteToolbar=document.querySelector('.rte-toolbar');
-    if(rteToolbar&&!document.getElementById('rteTableBtn')){
-      const btn=document.createElement('button');btn.id='rteTableBtn';btn.className='rte-btn';btn.type='button';
-      btn.textContent='⊞';btn.title='插入表格';btn.onclick=()=>{const r=parseInt(prompt('行數：','3')||3);const c=parseInt(prompt('欄數：','3')||3);insertTableToRTE(r,c);};
-      rteToolbar.appendChild(btn);
-    }
-  },250);
-}
+
 
 // ══ FINAL COMPLETE BATCH — V24 ══
 
@@ -9105,30 +8972,101 @@ const _origRenderChangelog=renderChangelog;
 async function renderChangelog(){await renderChangelogTimeline();}
 
 // ── Override vApply final v24 ──
-const _origVApplyV24=vApply;
 function vApply(){
-  _origVApplyV24();
+  // ── UNIFIED vApply: filter, sort, render ──
+  if(!vAll.length){
+    document.getElementById('tbody').innerHTML='<tr><td colspan="15"><div class="state-box">請先選擇專案載入 tickets</div></td></tr>';
+    document.getElementById('footerText').textContent='';
+    vRenderChips('','','','','','','','');
+    return;
+  }
+  const kw=document.getElementById('f-kw')?.value.trim()||'';
+  const stat=document.getElementById('f-stat')?.value||'';
+  const asgn=document.getElementById('f-asgn')?.value||'';
+  const type=document.getElementById('f-type')?.value||'';
+  const date=document.getElementById('f-date')?.value||'';
+  const due=document.getElementById('f-due')?.value||'';
+  const sprint=document.getElementById('f-sprint')?.value||'';
+  const label=document.getElementById('f-label')?.value||'';
+  const comp=document.getElementById('f-comp')?.value||'';
+  const ver=document.getElementById('f-ver')?.value||'';
+
+  // Fuzzy mode (~ prefix)
+  if(kw.startsWith('~')&&kw.length>1){
+    const fz=fuzzySearch(vAll,kw.slice(1));
+    const fzFiltered=fz.filter(i=>
+      (!stat||i.status===stat)&&
+      (!asgn||i.assignee===asgn)&&
+      (!type||i.type===type)&&
+      (!sprint||i.sprint===sprint)&&
+      (!label||(i.labels||[]).includes(label))&&
+      (!vStatCat||i.statusCat===vStatCat)
+    );
+    window._filteredAll=fzFiltered;window._filteredShown=fzFiltered.length;
+    if(_groupBy)vRenderGrouped(fzFiltered,_groupBy);else vRenderTableRAF(fzFiltered);
+    document.getElementById('footerText').textContent=fzFiltered.length+' / '+vAll.length+' 筆（模糊搜尋）';
+    updateSortIndicators();updateSortBadges();
+    vRenderChips(kw,stat,asgn,type,date,due,sprint,label);
+    return;
+  }
+
+  // Standard filtering
+  let filtered=vAll.filter(i=>{
+    if(stat&&i.status!==stat) return false;
+    if(asgn&&i.assignee!==asgn) return false;
+    if(type&&i.type!==type) return false;
+    if(sprint&&i.sprint!==sprint) return false;
+    if(label&&!(i.labels||[]).includes(label)) return false;
+    if(comp&&i.component!==comp) return false;
+    if(ver&&i.fixVersion!==ver) return false;
+    if(vStatCat&&i.statusCat!==vStatCat) return false;
+    if(date&&i.updated<date) return false;
+    if(due&&i.duedate>due) return false;
+    // Multi-filters
+    for(const[field,vals]of Object.entries(multiFilters||{})){
+      if(vals.size&&!vals.has(i[field]||'')) return false;
+    }
+    if(kw&&!matchKeyword(i,kw)) return false;
+    return true;
+  });
+
+  // Pin pinned rows to top
+  if(_pinnedRows&&_pinnedRows.size){
+    filtered=applyPinnedRows(filtered);
+  }
+
+  // Sort
+  if(sortKeys&&sortKeys.length){
+    filtered.sort((a,b)=>vSortCmp(a,b,sortKeys));
+  }
+
+  window._filteredAll=filtered;window._filteredShown=filtered.length;
+
+  // Render
+  if(_groupBy)vRenderGrouped(filtered,_groupBy);
+  else vRenderTableRAF(filtered);
+
+  // Update UI
+  const total=_serverTotal>vAll.length?_serverTotal:vAll.length;
+  document.getElementById('footerText').textContent=filtered.length+' / '+total+' 筆';
+  updateSortIndicators();
   setTimeout(()=>{
     updateSortBadges();
     updateRowHeightCache();
+    const expBtn=document.getElementById('exportSelBtn');
+    const expCount=document.getElementById('exportSelCount');
+    const n=selectedKeys.size;
+    if(expBtn){expBtn.style.display=n>0?'inline-flex':'none';if(expCount)expCount.textContent=n;}
   },80);
+  vRenderChips(kw,stat,asgn,type,date,due,sprint,label);
+  // Track usage
+  if(typeof trackUsage==='function')trackUsage('vApply');
+  // Save sort
+  if(typeof saveSortKeys==='function')saveSortKeys();
 }
 
 // ── Override renderModal final v24 — add compare button enhancement ──
-const _origRenderModalV24=renderModal;
-function renderModal(issue,transitions,meta){
-  _origRenderModalV24(issue,transitions,meta);
-  const iKey=issue?.key||curModalKey;
-  setTimeout(()=>{
-    // Enhance compare button to use new split view
-    const cmpBtn=document.getElementById('mCompareBtn');
-    if(cmpBtn) cmpBtn.onclick=()=>{
-      const key2=prompt('輸入第二個 ticket Key 進行並排比較：');
-      if(key2)openCompareView(iKey,key2.trim().toUpperCase());
-    };
-    setupModalMentionComplete();
-  },200);
-}
+
 
 // ── Init ──
 switchTab('viewer');
@@ -9189,12 +9127,6 @@ requestOsNotif().catch(()=>{});
 applyStickyColsStyle();
 initCustomStat();
 checkStorageQuota();
-openDB().catch(()=>{});
-pingServer();
-setupSSE();
-requestOsNotif().catch(()=>{});
-applyStickyColsStyle();
-initCustomStat();
 
 // Add Ctrl+/ for global search
 document.addEventListener('keydown',e=>{
