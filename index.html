@@ -1393,9 +1393,7 @@ th.sorted{color:var(--acc);}
       <option value="5" selected>快取 5 分</option>
       <option value="10">快取 10 分</option>
     </select>
-    <button onclick="toggleAcctPanel()" class="tb-btn" id="acctBtn" title="切換帳號/環境">
-      <span id="acctLabel" style="font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">帳號</span>
-    </button>
+
     <button onclick="toggleShortcuts()" class="tb-btn" title="快捷鍵說明 (?)">⌨ ?</button>
     <span id="serverStatus" title="Server 狀態" style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);padding:3px 8px;background:var(--surf3,#f0f2f5);border-radius:5px;cursor:pointer" onclick="pingServer()">
       <span id="serverDot" style="width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0"></span>
@@ -1514,17 +1512,16 @@ th.sorted{color:var(--acc);}
         </div>
       </div>
       <div class="fg"><div class="fg-lbl">類型</div><select class="fg-sel" id="f-type" onchange="vApply()"><option value="">全部</option></select></div>
-      <div class="fg" style="min-width:200px">
-       <div class="fg">
+      <div class="fg">
          <div class="fg-lbl">更新日期</div>
          <input class="fg-inp" id="f-date" type="date" oninput="vApply()" title="篩選此日期當天更新的 tickets">
-       </div>
-       <div class="fg">
+      </div>
+      <div class="fg">
          <div class="fg-lbl">截止日期</div>
          <input class="fg-inp" id="f-due" type="date" oninput="vApply()" title="篩選此截止日期的 tickets">
-       </div>
-      <div class="fg"><div class="fg-lbl">Component</div><select class="fg-sel" id="f-comp" onchange="vApply()"><option value="">全部</option></select></div>
-      <div class="fg"><div class="fg-lbl">Fix Version</div><select class="fg-sel" id="f-ver" onchange="vApply()"><option value="">全部</option></select></div>
+      </div>
+      <input type="hidden" id="f-comp" value="">
+      <input type="hidden" id="f-ver" value="">
       <div class="fg" style="justify-content:flex-end"><button class="btn-rst" onclick="vReset()">✕ 清除</button>
       <div class="named-filter-wrap">
         <button class="btn-rst" id="namedFilterBtn" onclick="toggleNamedFilterDD()" style="border-color:var(--acc);color:var(--acc)">📂 已存</button>
@@ -1919,7 +1916,7 @@ th.sorted{color:var(--acc);}
 </div>
 
 <!-- Account switcher (item 23) -->
-<div id="acctPanel" class="acct-panel">
+<div id="acctPanel" class="acct-panel" style="display:none" style="display:none">
   <div style="font-size:12px;font-weight:600;color:var(--dim);margin-bottom:10px">帳號 / 環境切換</div>
   <div id="acctList"></div>
   <div style="margin-top:12px;border-top:1px solid var(--bdr);padding-top:12px">
@@ -6268,7 +6265,7 @@ const TOUR_STEPS=[
   {selector:'#tab-kanban',title:'📌 看板視圖',desc:'以卡片方式顯示 tickets，可以拖曳切換狀態，支援 Swimlane 和縮圖模式。'},
   {selector:'#tab-creator',title:'✚ Creator 分頁',desc:'批次建立 tickets，支援 Excel 匯入、範本系統、從現有 ticket 複製資料。'},
   {selector:'#aiFab',title:'✨ AI 助理',desc:'輸入自然語言指令，AI 會幫你篩選、指派或切換狀態。例如：「顯示所有過期 ticket」。'},
-  {selector:'#acctBtn',title:'⚙ 帳號設定',desc:'管理多個 Jira 環境，切換不同的 API Token 和 Domain。'},
+
 ];
 let _tourIdx=0;
 function startTour(){
@@ -7994,18 +7991,14 @@ function addLocaleSelector(){
 // ── Override switchTab for help + changelog ──
 // ── Unified switchTab (replaces all broken override chain) ──
 function switchTab(t){
-  // 1. Hide all pages
-  document.querySelectorAll('.page').forEach(p=>{
-    p.style.display='none';p.classList.remove('active');
-  });
-  // 2. Show target page
+  // Toggle active class (CSS handles display via .page.active)
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   const target=document.getElementById('page-'+t);
-  if(target){target.style.display='block';target.classList.add('active');}
-  // 3. Update tab buttons
-  document.querySelectorAll('.tab-btn').forEach(b=>{
-    b.classList.toggle('active',b.id==='tab-'+t);
-  });
-  // 4. Tab-specific actions
+  if(target) target.classList.add('active');
+  const tabBtn=document.getElementById('tab-'+t);
+  if(tabBtn) tabBtn.classList.add('active');
+  // Tab-specific actions
   if(t==='kanban'){if(typeof renderKanban==='function')renderKanban();setTimeout(applyKbDueColors,300);}
   if(t==='dashboard'){if(typeof renderDashboard==='function')renderDashboard();}
   if(t==='timeline'){if(typeof renderTimeline==='function')renderTimeline();}
