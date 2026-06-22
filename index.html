@@ -1515,23 +1515,14 @@ th.sorted{color:var(--acc);}
       </div>
       <div class="fg"><div class="fg-lbl">類型</div><select class="fg-sel" id="f-type" onchange="vApply()"><option value="">全部</option></select></div>
       <div class="fg" style="min-width:200px">
-        <div class="fg-lbl">更新日期範圍</div>
-        <div class="date-range">
-          <input class="fg-inp" id="f-date-from" type="date" oninput="vApply()" placeholder="從" style="flex:1">
-          <span class="date-sep">—</span>
-          <input class="fg-inp" id="f-date-to" type="date" oninput="vApply()" placeholder="到" style="flex:1">
-        </div>
-      </div>
-      <div class="fg" style="min-width:200px">
-        <div class="fg-lbl">截止日期範圍</div>
-        <div class="date-range">
-          <input class="fg-inp" id="f-due-from" type="date" oninput="vApply()" placeholder="從" style="flex:1">
-          <span class="date-sep">—</span>
-          <input class="fg-inp" id="f-due-to" type="date" oninput="vApply()" placeholder="到" style="flex:1">
-        </div>
-      </div>
-      <div class="fg"><div class="fg-lbl">Sprint</div><select class="fg-sel" id="f-sprint" onchange="vApply()"><option value="">全部</option></select></div>
-      <div class="fg"><div class="fg-lbl">Label</div><select class="fg-sel" id="f-label" onchange="vApply()"><option value="">全部</option></select></div>
+       <div class="fg">
+         <div class="fg-lbl">更新日期</div>
+         <input class="fg-inp" id="f-date" type="date" oninput="vApply()" title="篩選此日期當天更新的 tickets">
+       </div>
+       <div class="fg">
+         <div class="fg-lbl">截止日期</div>
+         <input class="fg-inp" id="f-due" type="date" oninput="vApply()" title="篩選此截止日期的 tickets">
+       </div>
       <div class="fg"><div class="fg-lbl">Component</div><select class="fg-sel" id="f-comp" onchange="vApply()"><option value="">全部</option></select></div>
       <div class="fg"><div class="fg-lbl">Fix Version</div><select class="fg-sel" id="f-ver" onchange="vApply()"><option value="">全部</option></select></div>
       <div class="fg" style="justify-content:flex-end"><button class="btn-rst" onclick="vReset()">✕ 清除</button>
@@ -2015,7 +2006,7 @@ async function vLoadProjects(){
   }catch(e){document.getElementById('f-proj').innerHTML='<option value="">載入失敗</option>';}
 }
 
-async function vOnProj(){
+async function _vOnProjBase(){
   vProj=document.getElementById('f-proj').value;
   vBoard='';vEpic='';vStatCat='';selectedKeys.clear();
   document.getElementById('f-board').value='';
@@ -5285,10 +5276,9 @@ function addFillFromKeyBtn(){
 }
 
 // ── Override vOnProj to save/restore filter memory ──
-const _origVOnProj=vOnProj;
 async function vOnProj(){
   if(vProj) saveFilterMemory(vProj);
-  await _origVOnProj();
+  await _vOnProjBase();
   const newProj=document.getElementById('f-proj')?.value;
   if(newProj) restoreFilterMemory(newProj);
 }
@@ -9020,8 +9010,8 @@ function vApply(){
     if(comp&&i.component!==comp) return false;
     if(ver&&i.fixVersion!==ver) return false;
     if(vStatCat&&i.statusCat!==vStatCat) return false;
-    if(date&&i.updated<date) return false;
-    if(due&&i.duedate>due) return false;
+    if(date&&!i.updated.startsWith(date)) return false;
+    if(due&&i.duedate!==due) return false;
     // Multi-filters
     for(const[field,vals]of Object.entries(multiFilters||{})){
       if(vals.size&&!vals.has(i[field]||'')) return false;
