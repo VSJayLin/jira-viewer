@@ -4163,11 +4163,41 @@ let dashPins=JSON.parse(localStorage.getItem('jira_dashboard')||'[]');
 function renderDashboard(){
   const grid=document.getElementById('dashGrid');if(!grid) return;
   if(!dashPins.length){
-    grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)">
-      <div style="font-size:32px;margin-bottom:12px">🏠</div>
-      <div style="font-size:14px;font-weight:500;margin-bottom:6px">Dashboard 是空的</div>
-      <div style="font-size:12px">在 Viewer 頁面設定篩選條件後，點「儲存篩選」可釘選到這裡</div>
-    </div>`;
+    // Show live stats even when no pins
+    const tot=vAll.length,done=vAll.filter(i=>i.statusCat==='done').length;
+    const prog=vAll.filter(i=>i.statusCat==='indeterminate').length;
+    const od=vAll.filter(i=>i.duedate&&i.duedate!=='—'&&i.duedate<new Date().toISOString().slice(0,10)&&i.statusCat!=='done').length;
+    if(!tot){
+      grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)">
+        <div style="font-size:32px;margin-bottom:12px">🏠</div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px">請先在 Viewer 選擇專案載入資料</div>
+      </div>`;
+      return;
+    }
+    grid.innerHTML=`
+      <div class="dash-card" style="border-color:var(--acc)">
+        <div class="dash-card-title">📊 ${vProj||'全部'} 總覽</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+          <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:var(--dim)">${tot}</div><div style="font-size:11px;color:var(--muted)">總計</div></div>
+          <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:var(--success)">${done}</div><div style="font-size:11px;color:var(--muted)">完成</div></div>
+          <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:var(--warn)">${prog}</div><div style="font-size:11px;color:var(--muted)">進行中</div></div>
+          <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:${od?'var(--danger)':'var(--muted)'}">${od}</div><div style="font-size:11px;color:var(--muted)">已過期</div></div>
+        </div>
+      </div>
+      <div class="dash-card" style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);border-style:dashed">
+        <div style="font-size:12px">💡 在 Viewer 頁面設定篩選條件後點「儲存篩選」，可將統計卡片釘選到這裡</div>
+      </div>
+    `+dashPins.map((pin,i)=>`<div class="dash-card" id="dash-${i}">
+      <div class="dash-card-title"><span>${pin.icon||'📊'}</span><span>${pin.name}</span>
+        <button class="dash-card-pin" onclick="removeDashPin(${i})" title="移除">✕</button>
+      </div>
+      <div id="dash-content-${i}" style="font-size:12px;color:var(--muted)">載入中...</div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button onclick="applyDashFilter(${i})" style="flex:1;padding:5px;background:var(--acc);border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">套用篩選</button>
+        <button onclick="removeDashPin(${i})" style="padding:5px 10px;border:1px solid var(--bdr);border-radius:5px;background:transparent;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">移除</button>
+      </div>
+    </div>`).join('');
+    dashPins.forEach((pin,i)=>loadDashCard(pin,i));
     return;
   }
   grid.innerHTML=dashPins.map((pin,i)=>`<div class="dash-card" id="dash-${i}">
@@ -4798,7 +4828,6 @@ function addTemplateToCreator(){
 }
 
 // ── Kanban WIP limit ──
-const _origRenderKanbanCol=renderKanbanCol;
 function renderKanbanCol(status,items,cat){
   const wip=getWipLimit();const count=items.length;
   const wipClass=wip>0?(count>wip?'kb-wip-over':count===wip?'kb-wip-warn':''):'' ;
@@ -7204,19 +7233,36 @@ function updateKanbanSprintFilter(){
   const cur=sel.value;
   sel.innerHTML='<option value="">全部 Sprint</option>'+sprints.map(s=>`<option value="${s}" ${s===cur?'selected':''}>${s}</option>`).join('');
 }
-const _origRenderKanban=renderKanban;
 function renderKanban(){
+  if(!vAll.length){
+    const board=document.getElementById('kanban-board');
+    if(board) board.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;width:100%">← 請先在 Viewer 頁面選擇專案載入資料</div>';
+    return;
+  }
   updateKanbanSprintFilter();
   const sprintFilter=document.getElementById('kanban-sprint-filter')?.value||'';
-  if(sprintFilter){
-    // Temporarily filter vAll by sprint
-    const orig=window._kanbanData||vAll;
-    window._kanbanData=vAll;
-    const filtered=vAll.filter(i=>!sprintFilter||i.sprint===sprintFilter);
-    const temp=vAll;
-    // Swap vAll temporarily
-    vAll=filtered;_origRenderKanban();vAll=temp;
-  }else{_origRenderKanban();}
+  const swimlane=document.getElementById('kanban-swimlane')?.value||'none';
+  const board=document.getElementById('kanban-board');
+  if(!board) return;
+  // Filter by sprint if selected
+  const items=sprintFilter?vAll.filter(i=>i.sprint===sprintFilter):vAll;
+  // Swimlane or no-swimlane
+  if(swimlane==='none'){
+    board.innerHTML=renderKanbanNoSwimlane();
+  } else {
+    // Group by swimlane field
+    const lanes={};
+    items.forEach(i=>{const k=i[swimlane]||'未指派';if(!lanes[k])lanes[k]=[];lanes[k].push(i);});
+    board.innerHTML=Object.entries(lanes).map(([lane,laneItems])=>
+      `<div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--dim);padding:6px 0;border-bottom:2px solid var(--bdr);margin-bottom:8px">${lane}</div>
+        <div style="display:flex;gap:12px">${renderKanbanColumns(laneItems)}</div>
+      </div>`
+    ).join('');
+  }
+  setupTouchDrag();
+  applyKbDueColors();
+  setTimeout(injectAvatarsIntoTable,100);
 }
 
 // ── 16. Lead time vs Cycle time ──
