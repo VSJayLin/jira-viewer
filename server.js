@@ -101,7 +101,7 @@ const server = http.createServer(async (req, res) => {
     const ck=`tickets:${project}:${boardId}:${epic}:${customJql}`;
     const c=cacheGet(ck,CACHE_TTL.tickets);
     if(c){json(res,{issues:c,total:c.length,cached:true});return;}
-    const fields='summary,status,priority,assignee,issuetype,updated,created,duedate,reporter,labels,description';
+    const fields='summary,status,priority,assignee,issuetype,updated,created,duedate,reporter,labels,subtasks,customfield_10016,customfield_10020';
     try{
       let all=[];
       if(boardId&&!epic){
