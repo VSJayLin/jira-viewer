@@ -289,7 +289,7 @@ table.vt th{position:relative;}
 .recent-sum{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim);}
 .recent-time{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;flex-shrink:0;}
 /* ── Perf monitor panel (item 24) ── */
-.perf-panel{display:none;position:fixed;bottom:20px;left:20px;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;box-shadow:var(--shadow-lg);z-index:400;padding:14px;width:280px;}
+.perf-panel{display:none;position:fixed;top:52px;right:8px;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;box-shadow:var(--shadow-lg);z-index:400;padding:14px;width:280px;}
 .perf-panel.show{display:block;}
 .perf-row{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid var(--bdr);}
 .perf-row:last-child{border-bottom:none;}
@@ -7535,9 +7535,14 @@ async function refreshHealth(){
   const grid=document.getElementById('healthGrid');if(!grid) return;
   grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)"><div class="v-spin" style="margin:0 auto 10px"></div>檢查中...</div>';
   try{
+    const fetchWithTimeout=(url,ms=12000)=>{
+      const ctrl=new AbortController();
+      const timer=setTimeout(()=>ctrl.abort(),ms);
+      return fetch(url,{signal:ctrl.signal}).finally(()=>clearTimeout(timer));
+    };
     const[health,perf]=await Promise.all([
-      fetch(`${SERVER}/health`).then(r=>r.json()).catch(e=>({status:'error',checks:{server:{ok:false,error:e.message}}})),
-      fetch(`${SERVER}/perf`).then(r=>r.json()).catch(()=>null)
+      fetchWithTimeout(`${SERVER}/health`,12000).then(r=>r.json()).catch(e=>({status:'error',checks:{server:{ok:false,error:e.name==='AbortError'?'連線逾時 (12s)':e.message}}})),
+      fetchWithTimeout(`${SERVER}/perf`,8000).then(r=>r.json()).catch(()=>null)
     ]);
     const cards=[
       {name:'Jira API',data:health.checks?.jira},
