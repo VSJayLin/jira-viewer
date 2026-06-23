@@ -1508,6 +1508,8 @@ th.sorted{color:var(--acc);}
         </div>
       </div>
       <div class="fg"><div class="fg-lbl">類型</div><select class="fg-sel" id="f-type" onchange="vApply()"><option value="">全部</option></select></div>
+      <div class="fg"><div class="fg-lbl">Sprint</div><select class="fg-sel" id="f-sprint" onchange="vApply()"><option value="">全部 Sprint</option></select></div>
+      <div class="fg"><div class="fg-lbl">Label</div><select class="fg-sel" id="f-label" onchange="vApply()"><option value="">全部</option></select></div>
       <div class="fg">
          <div class="fg-lbl">更新日期</div>
          <input class="fg-inp" id="f-date" type="date" oninput="vApply()" title="篩選此日期當天更新的 tickets">
@@ -1599,8 +1601,8 @@ th.sorted{color:var(--acc);}
         <th data-col="reporter" id="th-reporter" onclick="vSort('reporter')">Reporter <i class="sa">↕</i></th>
         <th data-col="sprint" id="th-sprint">Sprint</th>
         <th data-col="labels" id="th-labels">Labels</th>
-        <th data-col="duedate" id="th-duedate" onclick="vSort('duedate')" style="min-width:52px">截止 <i class="sa">↕</i></th>
         <th data-col="storypoints" id="th-sp" onclick="vSort('storypoints')" style="min-width:36px">SP <i class="sa">↕</i></th>
+        <th data-col="duedate" id="th-duedate" onclick="vSort('duedate')" style="min-width:52px">截止 <i class="sa">↕</i></th>
         <th data-col="updated" id="th-updated" onclick="vSort('updated')" style="min-width:52px">Updated <i class="sa">↕</i></th>
       </tr></thead>
       <tbody id="tbody"><tr><td colspan="10"><div class="state-box">← 請先選擇專案</div></td></tr></tbody>
@@ -3278,7 +3280,7 @@ function toggleExpand(key){
 
 // ── Inline edit: Status (item 6) ──
 async function inlineEditStatus(key,el){
-  const td=el.closest('td');
+  const td=el?.closest('td');if(!td) return;
   const transitions=await fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]);
   if(!transitions.length){alert('無法取得狀態選項');return;}
   const item=vAll.find(i=>i.key===key);
@@ -3322,7 +3324,8 @@ async function inlineEditAssignee(key,el){
 
 // ── Inline edit: Due Date (item 4) ──
 function inlineEditDue(key,el){
-  const td=el.closest('td');const item=vAll.find(i=>i.key===key);
+  const td=el?.closest('td');if(!td) return;
+  const item=vAll.find(i=>i.key===key);
   const inp=document.createElement('input');inp.type='date';
   inp.style.cssText='border:1px solid var(--acc);border-radius:4px;padding:2px 4px;font-size:11px;outline:none;background:white';
   inp.value=item?.duedate&&item.duedate!=='—'?item.duedate:'';
@@ -3932,8 +3935,16 @@ async function applyMultiProj(){
       created:fmtDate(i.fields.created),duedate:fmtDate(i.fields.duedate),
       labels:i.fields.labels||[],sprint:i.fields.sprint?.name||i.fields.customfield_10020?.name||'',
       subtaskCount:(i.fields.subtasks||[]).length,
+      storypoints:parseFloat(i.fields.customfield_10016)||0,
     }));
-    vUpdateStats();vApply();vUpdateSyncTime();vCheckNotif();
+      // Populate sprint and label selects
+  const sprints=[...new Set(vAll.map(i=>i.sprint).filter(Boolean))].sort();
+  const sSel=document.getElementById('f-sprint');
+  if(sSel){const prev=sSel.value;sSel.innerHTML='<option value="">全部 Sprint</option>'+sprints.map(s=>`<option value="${s}">${s}</option>`).join('');sSel.value=prev;}
+  const labels=[...new Set(vAll.flatMap(i=>i.labels||[]).filter(Boolean))].sort();
+  const lSel=document.getElementById('f-label');
+  if(lSel){const prev=lSel.value;lSel.innerHTML='<option value="">全部</option>'+labels.map(l=>`<option value="${l}">${l}</option>`).join('');lSel.value=prev;}
+  vUpdateStats();vApply();vUpdateSyncTime();vCheckNotif();
   }catch(e){alert('載入失敗：'+e.message);}
   btn.disabled=false;btn.classList.remove('loading');
 }
@@ -5885,10 +5896,10 @@ function addChartModalButtons(){
 }
 
 // ── Also record ops for transition/assign ──
-const _origDoTransition=doTransitionFromSel;
+
 function doTransitionFromSel(key,sel){
   const val=sel?.value;if(val){const[transId,transName]=val.split('|');recordOp('transition',{key,transitionId:transId,status:transName});}
-  return _origDoTransition(key,sel);
+  if(val){const[transId,transName]=val.split('|');doTransition(key,transId,transName,sel);}
 }
 
 // ── Add 'From Key' btn observer for creator ──
@@ -6330,11 +6341,14 @@ function endTour(){document.getElementById('tourHighlight').style.display='none'
 
 
 // ── Override updateBatchBar to also update export selected btn ──
-const _origUpdateBatchBarFinal=updateBatchBar;
 function updateBatchBar(){
-  _origUpdateBatchBarFinal();
   const n=selectedKeys.size;
-  const expBtn=document.getElementById('exportSelBtn');const expCount=document.getElementById('exportSelCount');
+  const bar=document.getElementById('batchBar');
+  const cnt=document.getElementById('batchCount');
+  if(bar) bar.classList.toggle('show',n>0);
+  if(cnt) cnt.textContent=n;
+  const expBtn=document.getElementById('exportSelBtn');
+  const expCount=document.getElementById('exportSelCount');
   if(expBtn){expBtn.style.display=n>0?'inline-flex':'none';if(expCount)expCount.textContent=n;}
 }
 
@@ -6920,9 +6934,8 @@ async function checkForUpdates(){
 
 
 // ── Add keyboard shortcut for Ctrl+K ──
-const _origExtKb=setupExtendedKbShortcuts;
 function setupExtendedKbShortcuts(){
-  if(typeof _origExtKb==='function') _origExtKb();
+  // Extended keyboard shortcuts
   document.addEventListener('keydown',e=>{
     const inInput=e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA';
     if((e.ctrlKey||e.metaKey)&&e.key==='k'){
@@ -7155,22 +7168,36 @@ function filterModifiedByMe(){
 
 // ── 10. AND/OR/NOT search syntax ──
 // Enhanced matchKeyword is already in place, add NOT support
-const _origMatchKeyword=matchKeyword;
 function matchKeyword(item,kw){
   if(!kw) return true;
-  // NOT operator: -word or NOT word
+  // NOT operator
   if(kw.includes(' NOT ')){
     const[must,notPart]=kw.split(' NOT ',2);
-    const mustMatch=_origMatchKeyword(item,must.trim());
-    const notMatch=_origMatchKeyword(item,notPart.trim());
-    return mustMatch&&!notMatch;
+    return matchKeyword(item,must.trim())&&!matchKeyword(item,notPart.trim());
   }
-  if(kw.match(/^-\w/)){return!_origMatchKeyword(item,kw.slice(1));}
+  if(kw.match(/^-\w/)){return!matchKeyword(item,kw.slice(1));}
   // OR operator
-  if(kw.includes(' OR ')){return kw.split(' OR ').some(k=>_origMatchKeyword(item,k.trim()));}
+  if(kw.includes(' OR ')){return kw.split(' OR ').some(k=>matchKeyword(item,k.trim()));}
   // AND operator
-  if(kw.includes(' AND ')){return kw.split(' AND ').every(k=>_origMatchKeyword(item,k.trim()));}
-  return _origMatchKeyword(item,kw);
+  if(kw.includes(' AND ')){return kw.split(' AND ').every(k=>matchKeyword(item,k.trim()));}
+  // Base: simple field match
+  const q=kw.toLowerCase();
+  // field:value syntax
+  const fm=kw.match(/^(\w+):(.+)$/);
+  if(fm){
+    const[,field,val]=fm;const v=val.toLowerCase();
+    const fieldMap={key:'key',summary:'summary',assignee:'assignee',status:'status',
+                    type:'type',priority:'priority',reporter:'reporter',sprint:'sprint',
+                    label:'labels',epic:'epic'};
+    const prop=fieldMap[field.toLowerCase()]||field;
+    if(prop==='labels') return(item.labels||[]).some(l=>l.toLowerCase().includes(v));
+    return String(item[prop]||'').toLowerCase().includes(v);
+  }
+  // General search across all fields
+  return[item.key,item.summary,item.assignee,item.status,item.type,item.priority,
+         item.reporter,item.sprint,...(item.labels||[])].some(v=>
+    String(v||'').toLowerCase().includes(q)
+  );
 }
 
 // ── 11. Image drag-drop into Description ──
@@ -7867,11 +7894,25 @@ function toggleAutoOpenFirst(){
   showUndoToast(_autoOpenFirst?'✅ 建立後將自動開啟第一筆':'建立後不自動開啟');
 }
 // Override cRenderResult to auto-open
-const _origCRenderResultAO=cRenderResult;
 function cRenderResult(data,rows){
-  _origCRenderResultAO(data,rows);
-  if(_autoOpenFirst&&createdKeys?.length>0){
-    setTimeout(()=>{switchTab('viewer');setTimeout(()=>openModal(createdKeys[0]),800);},1000);
+  // Render creation results (base logic)
+  const ok=data.filter(r=>r.ok).length;
+  const fail=data.filter(r=>!r.ok).length;
+  const resultDiv=document.getElementById('cResultPanel');
+  if(resultDiv){
+    resultDiv.innerHTML=`<div style="padding:12px;background:${fail?'var(--warn-bg)':'var(--success-bg)'};border-radius:8px;margin-bottom:8px">
+      ✅ 成功 ${ok} 筆${fail>0?` / ❌ 失敗 ${fail} 筆`:''}</div>`+
+      data.map(r=>`<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--bdr)">
+        ${r.ok?'✅':'❌'} ${r.key||'?'}: ${r.summary||r.error||''}</div>`).join('');
+    resultDiv.style.display='block';
+  }
+  if(ok>0){
+    const keys=data.filter(r=>r.ok).map(r=>r.key);
+    window.createdKeys=keys;
+    addHistory('批次建立',`${ok} 筆: ${keys.slice(0,3).join(',')}${keys.length>3?'...':''}`,null);
+  }
+  if(_autoOpenFirst&&window.createdKeys?.length>0){
+    setTimeout(()=>{switchTab('viewer');setTimeout(()=>openModal(window.createdKeys[0]),800);},1000);
   }
 }
 
@@ -7890,7 +7931,7 @@ async function addWatcherToCreated(key){
 }
 
 // ── 21. Debug mode ──
-let _debugMode=new URLSearchParams(window.location.search).has('debug')||localStorage.getItem('jira_debug')==='1';
+let _debugMode=(typeof URLSearchParams!=='undefined'&&new URLSearchParams(window.location.search).has('debug'))||localStorage.getItem('jira_debug')==='1';
 const _debugEntries=[];
 function debugLog(type,msg,data){
   if(!_debugMode) return;
@@ -7915,12 +7956,14 @@ function toggleDebugPanel(){
 }
 // Intercept fetch for debug logging
 const _origFetchDebug=window.fetch;
+let _inDebugLog=false;
 window.fetch=function(url,...args){
+  if(_inDebugLog) return _origFetchDebug.call(this,url,...args);
   const isAPI=typeof url==='string'&&url.includes(SERVER);
-  if(isAPI&&_debugMode) debugLog('api',`→ ${(args[0]?.method||'GET')} ${url.replace(SERVER,'')}`);
+  if(isAPI&&_debugMode){_inDebugLog=true;debugLog('api',`→ ${(args[0]?.method||'GET')} ${url.replace(SERVER,'')}`);_inDebugLog=false;}
   const t0=Date.now();
   const promise=_origFetchDebug.call(this,url,...args);
-  if(isAPI&&_debugMode) promise.then(r=>{debugLog('api',`← ${r.status} ${url.replace(SERVER,'')} (${Date.now()-t0}ms)`);}).catch(e=>debugLog('error',`✕ ${url.replace(SERVER,'')} ${e.message}`));
+  if(isAPI&&_debugMode) promise.then(r=>{if(!_inDebugLog){_inDebugLog=true;debugLog('api',`← ${r.status} ${url.replace(SERVER,'')} (${Date.now()-t0}ms)`);_inDebugLog=false;}}).catch(e=>{if(!_inDebugLog){_inDebugLog=true;debugLog('error',`✕ ${url.replace(SERVER,'')} ${e.message}`);_inDebugLog=false;}});
   return promise;
 };
 // Add debug button to topbar
@@ -8956,12 +8999,17 @@ function broadcastUpdateShared(key){
 }
 
 // ── 24. Account switch auto reload ──
-const _origSwitchAccount=switchAccount;
 function switchAccount(idx){
-  _origSwitchAccount(idx);
+  const accounts=JSON.parse(localStorage.getItem('jira_accounts')||'[]');
+  if(!accounts[idx]) return;
+  localStorage.setItem('jira_active_account',idx);
+  const acct=accounts[idx];
+  const lbl=document.getElementById('acctLabel');
+  if(lbl) lbl.textContent=acct.name||acct.domain||'帳號';
+  document.getElementById('acctPanel')?.classList.remove('show');
   setTimeout(async()=>{
     if(vProj){
-      await idbClear().catch(()=>{});// Clear IDB cache for new account
+      await idbClear().catch(()=>{});
       await vFetch();
       showUndoToast('✅ 已切換帳號並重新載入資料');
     }
@@ -8979,7 +9027,7 @@ function setupPWA(){
       setInterval(()=>reg.update(),60*1000);
     }).catch(e=>debugLog('warn','SW register failed: '+e.message));
     // Receive messages from SW
-    navigator.serviceWorker.addEventListener('message',e=>{
+    navigator.serviceWorker?.addEventListener?.('message',e=>{
       if(e.data?.type==='sync'){flushOfflineQueue();}
     });
   }
