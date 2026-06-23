@@ -122,7 +122,7 @@ table.vt tbody tr:hover .sum-edit-btn{display:inline;}
 .batch-act:hover{background:#0065ff;}
 .batch-clear{padding:4px 10px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--dim);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;}
 /* History panel */
-.hist-panel{position:fixed;top:52px;right:220px;width:380px;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:150;display:none;}
+.hist-panel{position:fixed;top:52px;right:220px;width:400px;max-height:80vh;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:150;display:none;overflow:hidden;}
 .hist-panel .hist-body{max-height:60vh;overflow-y:auto;transition:max-height .2s;}
 .hist-panel.collapsed .hist-body{max-height:0;overflow:hidden;}
 .hist-panel.show{display:block;}
@@ -1462,9 +1462,6 @@ th.sorted{color:var(--acc);}
       <div class="stat-l" id="s-custom-label" style="color:var(--purple)">自訂</div>
     </div>
   </div>
-    <div id="histList"></div>
-  </div>
-
   <!-- Saved filters -->
   <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap;font-size:10px;">
     <span style="color:var(--muted)">常用篩選：</span>
@@ -1601,9 +1598,9 @@ th.sorted{color:var(--acc);}
         <th data-col="priority" id="th-priority" onclick="vSort('priority')">Priority <i class="sa">↕</i></th>
         <th data-col="assignee" id="th-assignee" onclick="vSort('assignee')">Assignee <i class="sa">↕</i></th>
         <th data-col="reporter" id="th-reporter" onclick="vSort('reporter')">Reporter <i class="sa">↕</i></th>
-        <th data-col="sprint" id="th-sprint">Sprint</th>
-        <th data-col="labels" id="th-labels">Labels</th>
-        <th data-col="storypoints" id="th-sp" onclick="vSort('storypoints')" style="min-width:36px">SP <i class="sa">↕</i></th>
+        <th data-col="sprint" id="th-sprint" style="display:none">Sprint</th>
+        <th data-col="labels" id="th-labels" style="display:none">Labels</th>
+        <th data-col="storypoints" id="th-sp" onclick="vSort('storypoints')" style="min-width:36px;display:none">SP <i class="sa">↕</i></th>
         <th data-col="duedate" id="th-duedate" onclick="vSort('duedate')" style="min-width:52px">截止 <i class="sa">↕</i></th>
         <th data-col="updated" id="th-updated" onclick="vSort('updated')" style="min-width:52px">Updated <i class="sa">↕</i></th>
       </tr></thead>
@@ -1972,7 +1969,7 @@ function updateCacheTtl(){
 let vAll=[],vSortK='key',vSortA=true,vProj='',vBoard='',vEpic='',vStatCat='',vJql='';
 let selectedKeys=new Set();
 let lastCached=false;
-const visCols=new Set(['type','status','priority','assignee','reporter','sprint','labels','duedate','updated']);
+const visCols=new Set(['type','status','priority','assignee','reporter','duedate','updated']);
 // ── New state variables ──
 let sortKeys=[{k:'key',a:true}];
 let modalList=[],modalIdx=0;
@@ -3951,7 +3948,7 @@ async function applyMultiProj(){
     vAll=issues.map(i=>({
       key:i.key,url:`https://${JIRA_DOMAIN}/browse/${i.key}`,
       summary:i.fields.summary||'',status:i.fields.status?.name||'',
-      statusCat:i.fields.status?.statusCategory?.key||'',type:i.fields.issuetype?.name||'',
+      statusCat:(i.fields.status?.statusCategory?.key==='new'?'todo':i.fields.status?.statusCategory?.key||''),type:i.fields.issuetype?.name||'',
       priority:i.fields.priority?.name||'',assignee:i.fields.assignee?.displayName||'',
       reporter:i.fields.reporter?.displayName||'',updated:(i.fields.updated?i.fields.updated.slice(0,16).replace('T',' '):'—'),
       created:fmtDate(i.fields.created),duedate:fmtDate(i.fields.duedate),
@@ -4791,7 +4788,7 @@ async function vFetch(){
     vAll=issues.map(i=>({
       key:i.key,url:`https://${JIRA_DOMAIN}/browse/${i.key}`,
       summary:i.fields.summary||'',status:i.fields.status?.name||'',
-      statusCat:i.fields.status?.statusCategory?.key||'',type:i.fields.issuetype?.name||'',
+      statusCat:(i.fields.status?.statusCategory?.key==='new'?'todo':i.fields.status?.statusCategory?.key||''),type:i.fields.issuetype?.name||'',
       priority:i.fields.priority?.name||'',assignee:i.fields.assignee?.displayName||'',
       reporter:i.fields.reporter?.displayName||'',updated:(i.fields.updated?i.fields.updated.slice(0,16).replace('T',' '):'—'),
       created:fmtDate(i.fields.created),duedate:fmtDate(i.fields.duedate),
@@ -6696,7 +6693,7 @@ async function loadMultiProjKanban(){
     const fmtDate=s=>s?s.slice(0,10):'—';
     const multiAll=issues.map(i=>({
       key:i.key,url:`https://${JIRA_DOMAIN}/browse/${i.key}`,summary:i.fields.summary||'',
-      status:i.fields.status?.name||'',statusCat:i.fields.status?.statusCategory?.key||'',
+      status:i.fields.status?.name||'',statusCat:(i.fields.status?.statusCategory?.key==='new'?'todo':i.fields.status?.statusCategory?.key||''),
       type:i.fields.issuetype?.name||'',priority:i.fields.priority?.name||'',
       assignee:i.fields.assignee?.displayName||'',duedate:fmtDate(i.fields.duedate),
       labels:i.fields.labels||[],sprint:i.fields.sprint?.name||'',storypoints:i.fields.customfield_10016||0,
@@ -8198,7 +8195,7 @@ async function serverSidePaginate(proj,jql,page=0){
     const newItems=(data.issues||[]).map(i=>({
       key:i.key,url:`https://${JIRA_DOMAIN}/browse/${i.key}`,
       summary:i.fields.summary||'',status:i.fields.status?.name||'',
-      statusCat:i.fields.status?.statusCategory?.key||'',type:i.fields.issuetype?.name||'',
+      statusCat:(i.fields.status?.statusCategory?.key==='new'?'todo':i.fields.status?.statusCategory?.key||''),type:i.fields.issuetype?.name||'',
       priority:i.fields.priority?.name||'',assignee:i.fields.assignee?.displayName||'',
       reporter:i.fields.reporter?.displayName||'',updated:(i.fields.updated?i.fields.updated.slice(0,16).replace('T',' '):'—'),
       created:fmtDate(i.fields.created),duedate:fmtDate(i.fields.duedate),
