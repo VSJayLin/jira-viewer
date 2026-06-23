@@ -122,7 +122,9 @@ table.vt tbody tr:hover .sum-edit-btn{display:inline;}
 .batch-act:hover{background:#0065ff;}
 .batch-clear{padding:4px 10px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--dim);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;}
 /* History panel */
-.hist-panel{position:fixed;top:52px;right:220px;width:380px;max-height:70vh;overflow-y:auto;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:150;display:none;}
+.hist-panel{position:fixed;top:52px;right:220px;width:380px;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:150;display:none;}
+.hist-panel .hist-body{max-height:60vh;overflow-y:auto;transition:max-height .2s;}
+.hist-panel.collapsed .hist-body{max-height:0;overflow:hidden;}
 .hist-panel.show{display:block;}
 .hist-title{font-size:11px;font-weight:500;margin-bottom:8px;color:var(--dim);display:flex;align-items:center;gap:6px;}
 .hist-item{font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--bdr);font-family:'JetBrains Mono',monospace;}
@@ -1508,8 +1510,8 @@ th.sorted{color:var(--acc);}
         </div>
       </div>
       <div class="fg"><div class="fg-lbl">類型</div><select class="fg-sel" id="f-type" onchange="vApply()"><option value="">全部</option></select></div>
-      <div class="fg"><div class="fg-lbl">Sprint</div><select class="fg-sel" id="f-sprint" onchange="vApply()"><option value="">全部 Sprint</option></select></div>
-      <div class="fg"><div class="fg-lbl">Label</div><select class="fg-sel" id="f-label" onchange="vApply()"><option value="">全部</option></select></div>
+      <input type="hidden" id="f-sprint" value="">
+      <input type="hidden" id="f-label" value="">
       <div class="fg">
          <div class="fg-lbl">更新日期</div>
          <input class="fg-inp" id="f-date" type="date" oninput="vApply()" title="篩選此日期當天更新的 tickets">
@@ -1545,10 +1547,10 @@ th.sorted{color:var(--acc);}
     <button class="col-btn on" data-col="priority" onclick="toggleCol(this)">Priority</button>
     <button class="col-btn on" data-col="assignee" onclick="toggleCol(this)">Assignee</button>
     <button class="col-btn on" data-col="reporter" onclick="toggleCol(this)">Reporter</button>
-    <button class="col-btn on" data-col="sprint" onclick="toggleCol(this)">Sprint</button>
-    <button class="col-btn on" data-col="labels" onclick="toggleCol(this)">Labels</button>
+    <button class="col-btn" data-col="sprint" onclick="toggleCol(this)">Sprint</button>
+    <button class="col-btn" data-col="labels" onclick="toggleCol(this)">Labels</button>
     <button class="col-btn on" data-col="duedate" onclick="toggleCol(this)">截止日期</button>
-    <button class="col-btn on" data-col="storypoints" onclick="toggleCol(this)">SP</button>
+    <button class="col-btn" data-col="storypoints" onclick="toggleCol(this)">SP</button>
     <button class="col-btn on" data-col="updated" onclick="toggleCol(this)">Updated</button>
   </div>
 
@@ -2080,7 +2082,7 @@ function vSortCmp(a,b,key,asc){
 }
 
 function bCls(cat){return cat==='indeterminate'?'b-prog':cat==='done'?'b-done':'b-todo';}
-function fmtD(d){return d&&d!=='—'?`<span>${d.slice(0,4)}</span><br><span>${d.slice(5)}</span>`:'<span style="color:#c1c7d0">—</span>';}
+function fmtD(d){if(!d||d==='—')return '<span style="color:#c1c7d0">—</span>';const date=d.slice(0,10);const time=d.length>10?d.slice(11,16):'';return `<span>${date.slice(0,4)}</span><br><span>${date.slice(5)}${time?' '+time:''}</span>`;}
 
 function vRenderTable(data){
   const tbody=document.getElementById('tbody');
@@ -2220,7 +2222,12 @@ function vExport(){
     if(stat&&i.status!==stat) return false;
     if(asgn&&i.assignee!==asgn) return false;
     if(type&&i.type!==type) return false;
-    if(vStatCat&&i.statusCat!==vStatCat) return false;
+    if(vStatCat){
+      if(vStatCat==='overdue'){
+        const today=new Date().toISOString().slice(0,10);
+        if(!(i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done')) return false;
+      } else if(i.statusCat!==vStatCat) return false;
+    }
     return true;
   });
   const rows=[['Key','Summary','Status','Type','Priority','Assignee','Reporter','Due Date','Updated','Labels','URL']];
@@ -2340,6 +2347,13 @@ function addHistory(action,detail,key){
 }
 function renderHistory(){
   const list=document.getElementById('histList');
+  const panelList=document.getElementById('histPanelList');
+  const html=!historyLog.length?'<div style="font-size:11px;color:var(--muted);padding:4px 0">尚無操作記錄</div>':historyLog.slice(0,30).map(h=>`<div class="hist-item" style="cursor:${h.key?'pointer':'default'};display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:11px" onclick="${h.key?`openModal('${h.key}')`:''}">
+    ${h.key?`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--acc);flex-shrink:0">${h.key}</span>`:''}
+    <span style="color:var(--dim);flex:1">${h.action}：${h.detail}</span>
+    <span style="color:var(--muted);font-size:10px;flex-shrink:0">${h.time}</span>
+  </div>`).join('');
+  if(panelList) panelList.innerHTML=html;
   if(!list) return;
   if(!historyLog.length){list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 0">尚無操作記錄</div>';return;}
   list.innerHTML=historyLog.slice(0,20).map(h=>`<div class="hist-item" style="cursor:${h.key?'pointer':'default'}" onclick="${h.key?`openModal('${h.key}')`:''}" title="${h.key?'點擊開啟 '+h.key:''}">
@@ -2349,6 +2363,12 @@ function renderHistory(){
   </div>`).join('');
 }
 function toggleHist(){document.getElementById('histPanel').classList.toggle('show');renderHistory();}
+function toggleHistCollapse(){
+  const panel=document.getElementById('histPanel');
+  const btn=document.getElementById('histCollapseBtn');
+  panel.classList.toggle('collapsed');
+  if(btn) btn.textContent=panel.classList.contains('collapsed')?'▼':'▲';
+}
 function clearHistory(){historyLog=[];localStorage.removeItem('jira_history');renderHistory();}
 
 // ── Modal ──
@@ -3834,6 +3854,8 @@ const filterExcludes={stat:false,asgn:false,type:false,sprint:false,label:false}
 // ── 7. Hover tooltip ──
 let _ttTimeout=null;
 function setupTooltip(){
+  // Tooltip disabled - user prefers no hover zoom
+  return;
   document.addEventListener('mouseover',e=>{
     const row=e.target.closest('tr[id^="tr-"]');
     if(!row) return;
@@ -3931,7 +3953,7 @@ async function applyMultiProj(){
       summary:i.fields.summary||'',status:i.fields.status?.name||'',
       statusCat:i.fields.status?.statusCategory?.key||'',type:i.fields.issuetype?.name||'',
       priority:i.fields.priority?.name||'',assignee:i.fields.assignee?.displayName||'',
-      reporter:i.fields.reporter?.displayName||'',updated:fmtDate(i.fields.updated),
+      reporter:i.fields.reporter?.displayName||'',updated:(i.fields.updated?i.fields.updated.slice(0,16).replace('T',' '):'—'),
       created:fmtDate(i.fields.created),duedate:fmtDate(i.fields.duedate),
       labels:i.fields.labels||[],sprint:i.fields.sprint?.name||i.fields.customfield_10020?.name||'',
       subtaskCount:(i.fields.subtasks||[]).length,
@@ -4771,7 +4793,7 @@ async function vFetch(){
       summary:i.fields.summary||'',status:i.fields.status?.name||'',
       statusCat:i.fields.status?.statusCategory?.key||'',type:i.fields.issuetype?.name||'',
       priority:i.fields.priority?.name||'',assignee:i.fields.assignee?.displayName||'',
-      reporter:i.fields.reporter?.displayName||'',updated:fmtDate(i.fields.updated),
+      reporter:i.fields.reporter?.displayName||'',updated:(i.fields.updated?i.fields.updated.slice(0,16).replace('T',' '):'—'),
       created:fmtDate(i.fields.created),duedate:fmtDate(i.fields.duedate),
       labels:i.fields.labels||[],sprint:i.fields.sprint?.name||i.fields.customfield_10020?.name||'',
       subtaskCount:(i.fields.subtasks||[]).length,
@@ -7895,19 +7917,32 @@ function toggleAutoOpenFirst(){
 }
 // Override cRenderResult to auto-open
 function cRenderResult(data,rows){
-  // Render creation results (base logic)
-  const ok=data.filter(r=>r.ok).length;
-  const fail=data.filter(r=>!r.ok).length;
+  // Normalize: server returns {issues:[{key,self},...],errors:[...]}
+  let items=[];
+  if(Array.isArray(data)) items=data;
+  else if(data.issues||data.errors){
+    items=[
+      ...(data.issues||[]).map(i=>({ok:true,key:i.key,summary:rows?.find?.(r=>r._idx===undefined)?.summary||''})),
+      ...(data.errors||[]).map((e,idx)=>({ok:false,key:null,error:typeof e==='string'?e:(e.errorMessages||[]).join(', ')||JSON.stringify(e)})),
+    ];
+    // match summaries from rows
+    if(rows&&rows.length){
+      let ri=0;
+      items.forEach(item=>{if(item.ok&&ri<rows.length){item.summary=rows[ri]?.summary||'';ri++;}});
+    }
+  }
+  const ok=items.filter(r=>r.ok).length;
+  const fail=items.filter(r=>!r.ok).length;
   const resultDiv=document.getElementById('cResultPanel');
   if(resultDiv){
     resultDiv.innerHTML=`<div style="padding:12px;background:${fail?'var(--warn-bg)':'var(--success-bg)'};border-radius:8px;margin-bottom:8px">
       ✅ 成功 ${ok} 筆${fail>0?` / ❌ 失敗 ${fail} 筆`:''}</div>`+
-      data.map(r=>`<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--bdr)">
+      items.map(r=>`<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--bdr)">
         ${r.ok?'✅':'❌'} ${r.key||'?'}: ${r.summary||r.error||''}</div>`).join('');
     resultDiv.style.display='block';
   }
   if(ok>0){
-    const keys=data.filter(r=>r.ok).map(r=>r.key);
+    const keys=items.filter(r=>r.ok).map(r=>r.key).filter(Boolean);
     window.createdKeys=keys;
     addHistory('批次建立',`${ok} 筆: ${keys.slice(0,3).join(',')}${keys.length>3?'...':''}`,null);
   }
@@ -8165,7 +8200,7 @@ async function serverSidePaginate(proj,jql,page=0){
       summary:i.fields.summary||'',status:i.fields.status?.name||'',
       statusCat:i.fields.status?.statusCategory?.key||'',type:i.fields.issuetype?.name||'',
       priority:i.fields.priority?.name||'',assignee:i.fields.assignee?.displayName||'',
-      reporter:i.fields.reporter?.displayName||'',updated:fmtDate(i.fields.updated),
+      reporter:i.fields.reporter?.displayName||'',updated:(i.fields.updated?i.fields.updated.slice(0,16).replace('T',' '):'—'),
       created:fmtDate(i.fields.created),duedate:fmtDate(i.fields.duedate),
       labels:i.fields.labels||[],sprint:i.fields.sprint?.name||i.fields.customfield_10020?.name||'',
       subtaskCount:(i.fields.subtasks||[]).length,storypoints:i.fields.customfield_10016||0,
@@ -9081,7 +9116,7 @@ function vApply(){
       (!type||i.type===type)&&
       (!sprint||i.sprint===sprint)&&
       (!label||(i.labels||[]).includes(label))&&
-      (!vStatCat||i.statusCat===vStatCat)
+      (!vStatCat||(vStatCat==='overdue'?(i.duedate&&i.duedate!=='—'&&i.duedate<new Date().toISOString().slice(0,10)&&i.statusCat!=='done'):i.statusCat===vStatCat))
     );
     window._filteredAll=fzFiltered;window._filteredShown=fzFiltered.length;
     if(_groupBy)vRenderGrouped(fzFiltered,_groupBy);else vRenderTableRAF(fzFiltered);
@@ -9752,7 +9787,12 @@ setTimeout(()=>{
 
   <!-- History panel (item 23) -->
   <div class="hist-panel" id="histPanel">
-    <div class="hist-title">🕐 操作歷史記錄 <button class="draft-btn" style="margin-left:auto" onclick="clearHistory()">清除</button></div>
+    <div class="hist-title">🕐 操作歷史記錄
+      <button id="histCollapseBtn" onclick="toggleHistCollapse()" style="margin-left:auto;background:transparent;border:none;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 6px" title="收合">▲</button>
+      <button class="draft-btn" onclick="clearHistory()">清除</button>
+    </div>
+    <div class="hist-body" id="histPanelList"></div>
+  </div>
 
 </body>
 </html>
