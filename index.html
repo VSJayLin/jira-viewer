@@ -1698,9 +1698,9 @@ th.sorted{color:var(--acc);}
 <div class="v-wrap">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
     <span style="font-size:13px;font-weight:600;color:var(--dim)">看板視圖</span>
-    <select id="kanban-proj" style="padding:5px 10px;border:1px solid var(--bdr);border-radius:6px;font-size:12px;background:var(--surf2);outline:none" onchange="renderKanban()">
-      <option value="">請先載入專案資料</option>
-    </select>
+    <span id="kanban-proj-label" style="padding:5px 10px;border:1px solid var(--bdr);border-radius:6px;font-size:12px;background:var(--surf2);color:var(--dim);display:inline-flex;align-items:center;gap:4px"><span style="font-size:10px;color:var(--muted)">專案：</span><span id="kanban-proj-name">載入中...</span></span>
+
+
     <select id="kanban-sprint-filter" onchange="renderKanban()" style="padding:5px 10px;border:1px solid var(--bdr);border-radius:6px;font-size:12px;background:var(--surf2);outline:none">
       <option value="">全部 Sprint</option>
     </select>
@@ -1739,9 +1739,9 @@ th.sorted{color:var(--acc);}
 <div class="v-wrap">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
     <span style="font-size:13px;font-weight:600;color:var(--dim)">時間軸 / Gantt</span>
-    <select id="tl-proj" style="padding:5px 10px;border:1px solid var(--bdr);border-radius:6px;font-size:12px;background:var(--surf2);outline:none">
-      <option value="">請先在 Viewer 載入資料</option>
-    </select>
+    <span id="tl-proj-label" style="padding:5px 10px;border:1px solid var(--bdr);border-radius:6px;font-size:12px;background:var(--surf2);color:var(--dim);display:inline-flex;align-items:center;gap:4px"><span style="font-size:10px;color:var(--muted)">專案：</span><span id="tl-proj-name">載入中...</span></span>
+
+
     <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
       顯示天數 <input type="number" id="tlDays" value="60" min="14" max="180" style="width:44px;padding:3px 5px;border:1px solid var(--bdr);border-radius:4px;font-size:11px;outline:none" onchange="renderTimeline()">
     </label>
@@ -8468,9 +8468,18 @@ function switchTab(t){
   const tabBtn=document.getElementById('tab-'+t);
   if(tabBtn) tabBtn.classList.add('active');
   // Tab-specific actions
-  if(t==='kanban'){if(typeof renderKanban==='function')renderKanban();setTimeout(applyKbDueColors,300);}
+  if(t==='kanban'){
+    const kbLabel=document.getElementById('kanban-proj-name');
+    if(kbLabel) kbLabel.textContent=vProj||'（未選擇專案）';
+    if(typeof renderKanban==='function')renderKanban();
+    setTimeout(applyKbDueColors,300);
+  }
   if(t==='dashboard'){if(typeof renderDashboard==='function')renderDashboard();}
-  if(t==='timeline'){if(typeof renderTimeline==='function')renderTimeline();}
+  if(t==='timeline'){
+    const tlLabel=document.getElementById('tl-proj-name');
+    if(tlLabel) tlLabel.textContent=vProj||'（未選擇專案）';
+    if(typeof renderTimeline==='function')renderTimeline();
+  }
   if(t==='health'){setTimeout(()=>{if(typeof refreshHealth==='function')refreshHealth();if(typeof refreshPerfInline==='function')refreshPerfInline();},100);}
   if(t==='help'){if(typeof renderHelpPage==='function')renderHelpPage();}
   if(t==='changelog'){if(typeof renderChangelog==='function')renderChangelog();}
