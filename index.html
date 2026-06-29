@@ -126,6 +126,7 @@ table.vt tbody tr:hover .sum-edit-btn{display:inline;}
 .hist-panel .hist-body{max-height:60vh;overflow-y:auto;transition:max-height .2s;}
 .hist-panel.collapsed .hist-body{max-height:0;overflow:hidden;}
 .hist-panel.show{display:block;}
+@keyframes popIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
 .hist-title{font-size:11px;font-weight:500;margin-bottom:8px;color:var(--dim);display:flex;align-items:center;gap:6px;}
 .hist-item{font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--bdr);font-family:'JetBrains Mono',monospace;}
 .hist-item:last-child{border-bottom:none;}
@@ -7959,6 +7960,29 @@ function toggleAutoOpenFirst(){
   showUndoToast(_autoOpenFirst?'✅ 建立後將自動開啟第一筆':'建立後不自動開啟');
 }
 // Override cRenderResult to auto-open
+function showTicketCreatedModal(ok, fail, keys){
+  const modal=document.getElementById('ticketCreatedModal');
+  if(!modal) return;
+  // Message
+  const msgEl=document.getElementById('ticketCreatedMsg');
+  if(msgEl){
+    let msg=`成功建立 ${ok} 張 Ticket`;
+    if(fail>0) msg+=`，${fail} 張失敗`;
+    msgEl.textContent=msg;
+  }
+  // Key badges
+  const keysEl=document.getElementById('ticketCreatedKeys');
+  if(keysEl){
+    keysEl.innerHTML=keys.slice(0,12).map(k=>
+      `<a href="https://${JIRA_DOMAIN}/browse/${k}" target="_blank"
+        style="display:inline-block;padding:3px 10px;background:var(--acc-l,#ebf1ff);color:var(--acc);
+               border-radius:5px;font-size:11px;font-family:'JetBrains Mono',monospace;
+               text-decoration:none;font-weight:600">${k}</a>`
+    ).join('')+(keys.length>12?`<span style="font-size:11px;color:var(--muted)">...以及其他 ${keys.length-12} 張</span>`:'');
+  }
+  modal.style.display='flex';
+}
+
 function cRenderResult(data,rows){
   // Normalize: server returns {issues:[{key,self},...],errors:[...]}
   let items=[];
@@ -7988,6 +8012,8 @@ function cRenderResult(data,rows){
     const keys=items.filter(r=>r.ok).map(r=>r.key).filter(Boolean);
     window.createdKeys=keys;
     addHistory('批次建立',`${ok} 筆: ${keys.slice(0,3).join(',')}${keys.length>3?'...':''}`,null);
+    // Show success popup
+    showTicketCreatedModal(ok, fail, keys);
   }
   if(_autoOpenFirst&&window.createdKeys?.length>0){
     setTimeout(()=>{switchTab('viewer');setTimeout(()=>openModal(window.createdKeys[0]),800);},1000);
@@ -9837,5 +9863,18 @@ setTimeout(()=>{
     <div class="hist-body" id="histPanelList"></div>
   </div>
 
+<!-- Ticket Created Success Modal -->
+<div id="ticketCreatedModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--surf);border-radius:16px;padding:32px 36px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;animation:popIn .25s ease">
+    <div style="font-size:52px;margin-bottom:12px">✅</div>
+    <div style="font-size:20px;font-weight:700;color:var(--dim);margin-bottom:8px">Ticket 已建立完成</div>
+    <div id="ticketCreatedMsg" style="font-size:13px;color:var(--muted);margin-bottom:20px"></div>
+    <div id="ticketCreatedKeys" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:24px"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="document.getElementById('ticketCreatedModal').style.display='none'" style="padding:9px 24px;border:1px solid var(--bdr);border-radius:8px;background:transparent;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;color:var(--dim)">關閉</button>
+      <button onclick="document.getElementById('ticketCreatedModal').style.display='none';switchTab('viewer')" style="padding:9px 24px;border:none;border-radius:8px;background:var(--acc);color:white;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;font-weight:500">前往 Viewer 查看</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
