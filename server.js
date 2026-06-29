@@ -105,14 +105,33 @@ const server = http.createServer(async (req, res) => {
     try{
       let all=[];
       if(boardId&&!epic){
-        let startAt=0,total=null;
-        while(true){
-          const d=await jiraFetch(`/rest/agile/1.0/board/${boardId}/issue?fields=${fields}&maxResults=100&startAt=${startAt}`);
-          const batch=d.issues||[];
-          all=all.concat(batch);
-          if(total===null) total=d.total||0;
-          startAt+=batch.length;
-          if(!batch.length||startAt>=total) break;
+        // Get board's own JQL filter to show EXACTLY the same tickets as Jira
+        const boardConfig=await jiraFetch(`/rest/agile/1.0/board/${boardId}/configuration`).catch(()=>null);
+        const boardJql=boardConfig?.filter?.query;
+        if(boardJql){
+          // Use board's filter JQL → exact match with what Jira shows on this board
+          const jql=encodeURIComponent(boardJql+' ORDER BY key ASC');
+          let pageToken='';
+          while(true){
+            let apiPath=`/rest/api/3/search/jql?jql=${jql}&fields=${fields}&maxResults=100`;
+            if(pageToken) apiPath+=`&nextPageToken=${encodeURIComponent(pageToken)}`;
+            const d=await jiraFetch(apiPath);
+            const batch=d.issues||[];
+            all=all.concat(batch);
+            if(!d.nextPageToken||d.isLast) break;
+            pageToken=d.nextPageToken;
+          }
+        } else {
+          // Fallback: use board/issue API if config unavailable
+          let startAt=0,total=null;
+          while(true){
+            const d=await jiraFetch(`/rest/agile/1.0/board/${boardId}/issue?fields=${fields}&maxResults=100&startAt=${startAt}`);
+            const batch=d.issues||[];
+            all=all.concat(batch);
+            if(total===null) total=d.total||0;
+            startAt+=batch.length;
+            if(!batch.length||startAt>=total) break;
+          }
         }
       } else {
         let jqlParts=customJql?[customJql]:[`project=${project}`];
