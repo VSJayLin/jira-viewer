@@ -1807,11 +1807,11 @@ th.sorted{color:var(--acc);}
       <button onclick="applyCreatorBatch()" style="padding:3px 10px;background:var(--purple);border:none;border-radius:4px;color:white;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">套用</button>
       <button onclick="clearCreatorSelect()" style="padding:3px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;font-size:11px;cursor:pointer;color:var(--muted);font-family:'Inter',sans-serif">取消</button>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bdr);margin-bottom:8px;flex-wrap:wrap">
-  <span style="font-size:12px;font-weight:600;color:var(--dim);white-space:nowrap">📱 機種前綴</span>
-  <input id="c-model-prefix" class="ci" placeholder="例：IFPG1-2（留空不加前綴）" style="width:220px;font-family:'JetBrains Mono',monospace;font-size:12px" oninput="cUpdateModelPreview()">
-  <span id="c-model-preview" style="font-size:11px;color:var(--muted)"></span>
-  <span style="font-size:10px;color:var(--muted);margin-left:auto">💡 匯入 Excel 時自動從 B1 讀取機種名</span>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--acc-l,#ebf1ff);border:1px solid #bfdbfe;border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
+  <span style="font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-width:80px">📱 機種前綴</span>
+  <input id="c-model-prefix" class="ci" placeholder="例：IFPG1-2（留空不加前綴）" style="width:200px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;border:1.5px solid #93c5fd;border-radius:6px;padding:5px 10px;background:white" oninput="cUpdateModelPreview()">
+  <span id="c-model-preview" style="font-size:11px;color:var(--acc);font-weight:500"></span>
+  <span style="font-size:10px;color:#6b7280;margin-left:auto">💡 匯入 Excel 自動從 B1 讀取 · 清除所有列時同步清除</span>
 </div>
 <div class="c-tbl-wrap">
       <table class="ct">
@@ -3177,7 +3177,7 @@ function cAddRow(dS='',dD='',dDue='',dTypeId='',dAsgId='',dPrioId='',dLabels='',
 
 function cAddMulti(){const n=Math.min(parseInt(document.getElementById('c-multi').value)||5,50);for(let i=0;i<n;i++) cAddRow();}
 function cRemoveRow(id){document.getElementById('c-r-'+id)?.remove();cUpdateCnt();cUpdateSum();}
-function cClear(){if(!confirm('確定要清除所有列嗎？')) return;document.getElementById('c-body').innerHTML='';cRowId=0;for(let i=0;i<5;i++) cAddRow();cUpdateSum();}
+function cClear(){if(!confirm('確定要清除所有列嗎？')) return;document.getElementById('c-body').innerHTML='';cRowId=0;const mp=document.getElementById('c-model-prefix');if(mp){mp.value='';cUpdateModelPreview();};for(let i=0;i<5;i++) cAddRow();cUpdateSum();}
 function cUpdateCnt(){document.getElementById('c-cnt').textContent=document.getElementById('c-body').querySelectorAll('tr').length+' 列';}
 function cUpdateSum(){
   const rows=cGetRows();
@@ -3237,7 +3237,8 @@ function cSaveDraft(){
   const name=prompt('草稿名稱：',`草稿 ${new Date().toLocaleString('zh-TW')}`);
   if(!name) return;
   const rows=cGetRows();
-  const draft={name,project:cSP,board:cSB,epic:cSE,rows:rows.map(r=>({summary:r.summary,description:r.description,issueTypeId:r.issueTypeId,priorityId:r.priorityId,assigneeId:r.assigneeId,duedate:r.duedate,labels:r.labels?.join(',')||'',parentKey:r.parentKey})),ts:Date.now()};
+  const modelPrefix=document.getElementById('c-model-prefix')?.value.trim()||'';
+  const draft={name,project:cSP,board:cSB,epic:cSE,modelPrefix,rows:rows.map(r=>({summary:r.summary,description:r.description,issueTypeId:r.issueTypeId,priorityId:r.priorityId,assigneeId:r.assigneeId,duedate:r.duedate,labels:r.labels?.join(',')||'',parentKey:r.parentKey})),ts:Date.now()};
   drafts.unshift(draft);if(drafts.length>20)drafts.pop();
   localStorage.setItem('jira_drafts_v2',JSON.stringify(drafts));
   alert(`✅ 草稿「${name}」已儲存（${rows.length} 列）`);
@@ -3261,6 +3262,9 @@ function loadDraft(idx){
   const d=drafts[idx];
   if(!confirm(`載入草稿「${d.name}」？（${d.rows?.length||0} 列）`)) return;
   document.getElementById('c-body').innerHTML='';cRowId=0;
+  // Restore model prefix
+  const mp=document.getElementById('c-model-prefix');
+  if(mp){mp.value=d.modelPrefix||'';cUpdateModelPreview();}
   (d.rows||[]).forEach(r=>cAddRow(r.summary,r.description,r.duedate,r.issueTypeId,r.assigneeId,r.priorityId,r.labels||'',r.parentKey||''));
   cUpdateCnt();cUpdateSum();
   document.getElementById('draftManager').classList.add('hidden');
