@@ -7271,7 +7271,25 @@ function setColorMark(key,color){
   localStorage.setItem('jira_color_marks',JSON.stringify(_colorMarks));
   // Update row
   const row=document.getElementById('tr-'+key);
-  if(row){row.style.setProperty('--rule-color',(color||'transparent')+'44');const bar=row.querySelector('.color-mark-bar');if(bar)bar.style.background=color||'transparent';else if(color){const b=document.createElement('div');b.className='color-mark-bar';b.style.background=color;row.insertBefore(b,row.firstChild);}}
+  if(row){
+    row.style.setProperty('--rule-color',(color||'transparent')+'44');
+    const existingBar=row.querySelector('.color-mark-bar');
+    if(!color){
+      // Remove bar and restore row
+      if(existingBar) existingBar.remove();
+    } else if(existingBar){
+      existingBar.style.background=color;
+    } else {
+      // Insert bar into FIRST TD (not TR itself - div in tr breaks layout)
+      const firstTd=row.querySelector('td');
+      if(firstTd){
+        firstTd.style.position='relative';
+        const b=document.createElement('div');
+        b.className='color-mark-bar';b.style.background=color;
+        firstTd.insertBefore(b,firstTd.firstChild);
+      }
+    }
+  }
   document.querySelector('.color-mark-picker')?.remove();
 }
 
