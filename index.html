@@ -67,6 +67,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .jql-inp{flex:1;background:var(--surf2);border:1px solid var(--bdr);border-radius:5px;padding:5px 8px;color:var(--text);font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;}
 .jql-inp:focus{border-color:var(--acc);}
 .jql-inp::placeholder{color:var(--muted);}
+.jql-ex{display:inline-flex;padding:3px 10px;background:var(--acc-l,#ebf1ff);color:var(--acc);border-radius:5px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+.jql-ex:hover{background:var(--acc);color:white;}
 .jql-btn{padding:5px 12px;background:var(--acc);border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;}
 .jql-btn:hover{background:#0065ff;}
 .btn-rst{padding:5px 10px;background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap;}
@@ -1555,18 +1557,55 @@ th.sorted{color:var(--acc);}
       </div>
       <input type="hidden" id="f-comp" value="">
       <input type="hidden" id="f-ver" value="">
-      <div class="fg" style="justify-content:flex-end"><button class="btn-rst" onclick="vReset()">✕ 清除</button>
-      <div class="named-filter-wrap">
-        <button class="btn-rst" id="namedFilterBtn" onclick="toggleNamedFilterDD()" style="border-color:var(--acc);color:var(--acc)">📂 已存</button>
-        <div id="namedFilterDD" class="named-filter-dd"></div>
+      <div class="fg" style="justify-content:flex-end;flex-shrink:0;gap:4px;flex-wrap:nowrap">
+        <button class="btn-rst" onclick="vReset()">✕ 清除</button>
+        <div class="named-filter-wrap" style="position:relative">
+          <button class="btn-rst" id="namedFilterBtn" onclick="toggleNamedFilterDD()" style="border-color:var(--acc);color:var(--acc)">📂 已存</button>
+          <div id="namedFilterDD" class="named-filter-dd"></div>
+        </div>
+        <button onclick="toggleGroupBy()" id="groupByBtn" class="btn-rst" style="border-color:var(--purple);color:var(--purple)" title="分組顯示">⊞ 分組</button>
       </div>
-      <button onclick="toggleGroupBy()" id="groupByBtn" class="btn-rst" style="border-color:var(--purple);color:var(--purple)" title="分組顯示">⊞ 分組</button></div>
     </div>
-    <!-- JQL (item 11) -->
-    <div class="jql-row">
-      <span style="font-size:10px;color:var(--muted);white-space:nowrap">JQL：</span>
-      <input class="jql-inp" id="f-jql" placeholder='例：assignee = currentUser() AND status != Done AND due <= "2026-12-31"'>
-      <button class="jql-btn" onclick="vRunJql()">執行</button>
+    <!-- JQL row (collapsible) -->
+    <div id="jqlSection" style="margin-top:6px;border:1px solid var(--bdr);border-radius:8px;background:var(--surf2);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;user-select:none" onclick="toggleJqlSection()">
+        <span style="font-size:11px;font-weight:600;color:var(--dim)">JQL 查詢</span>
+        <span id="jqlCollapseHint" style="font-size:10px;color:var(--muted)">（點擊展開）</span>
+        <span id="jqlToggleIcon" style="font-size:10px;color:var(--muted);margin-left:auto">▼</span>
+      </div>
+      <div id="jqlBody" style="display:none;padding:8px 10px 10px;border-top:1px solid var(--bdr)">
+        <div class="jql-row" style="margin-top:0;margin-bottom:10px">
+          <span style="font-size:10px;color:var(--muted);white-space:nowrap">JQL：</span>
+          <input class="jql-inp" id="f-jql" placeholder='例：assignee = currentUser() AND status != Done AND due <= "2026-12-31"'>
+          <button class="jql-btn" onclick="vRunJql()">執行</button>
+        </div>
+        <div id="jqlHelp" style="font-size:11px;color:var(--dim);line-height:1.8;background:var(--surf);border-radius:6px;padding:10px 12px">
+          <div style="font-weight:600;margin-bottom:8px">📖 JQL 語法說明</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 20px;margin-bottom:10px">
+            <div>🔑 <b>欄位 運算子 值</b>（基本格式）</div>
+            <div>🔗 <b>AND / OR / NOT</b>（邏輯組合）</div>
+            <div>📊 <b>ORDER BY</b> 欄位 ASC/DESC</div>
+            <div>= / != / ~ / in / not in / is / is not / &gt; / &lt; / &gt;= / &lt;=</div>
+          </div>
+          <div style="margin-bottom:6px"><b>常用欄位：</b>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px">
+              project · status · assignee · reporter · priority · issuetype ·
+              created · updated · due · summary · labels · sprint · fixVersion · component · parent
+            </span>
+          </div>
+          <div style="font-weight:600;margin:8px 0 6px">🔍 點擊快速填入：</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <span class="jql-ex" onclick="jqlFill('assignee = currentUser() AND status != Done')">我的待辦</span>
+            <span class="jql-ex" onclick="jqlFill('updated >= -7d')">本週更新</span>
+            <span class="jql-ex" onclick="jqlFill('due <= 7d AND status != Done')">即將到期</span>
+            <span class="jql-ex" onclick="jqlFill('priority in (Highest, High) AND status != Done')">高優先未完成</span>
+            <span class="jql-ex" onclick="jqlFill('sprint in openSprints() AND status != Done')">本 Sprint 未完成</span>
+            <span class="jql-ex" onclick="jqlFill('labels is not EMPTY')">有標籤的票</span>
+            <span class="jql-ex" onclick="jqlFill('created >= -1d')">今天新增</span>
+            <span class="jql-ex" onclick="jqlFill('status changed to Done after -7d')">本週完成</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="chips" id="chips"></div>
     </div><!-- /fbar-body -->
@@ -6083,6 +6122,27 @@ function updateSortIndicators(){
 
 // ── 5. Filter bar collapse ──
 let _fbarCollapsed=false;
+function toggleJqlSection(){
+  const body=document.getElementById('jqlBody');
+  const icon=document.getElementById('jqlToggleIcon');
+  const hint=document.getElementById('jqlCollapseHint');
+  if(!body) return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  if(icon) icon.textContent=isOpen?'▼':'▲';
+  if(hint) hint.textContent=isOpen?'（點擊展開）':'（點擊收合）';
+  // If opening, focus the input
+  if(!isOpen) setTimeout(()=>document.getElementById('f-jql')?.focus(),50);
+}
+function jqlFill(jql){
+  const inp=document.getElementById('f-jql');
+  if(!inp) return;
+  inp.value=jql;
+  // Open the JQL section if collapsed
+  const body=document.getElementById('jqlBody');
+  if(body&&body.style.display==='none') toggleJqlSection();
+  inp.focus();
+}
 function toggleFilterBar(){
   _fbarCollapsed=!_fbarCollapsed;
   const body=document.getElementById('fbarBody');const btn=document.getElementById('fbarToggle');
