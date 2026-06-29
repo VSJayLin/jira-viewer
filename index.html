@@ -3727,13 +3727,36 @@ async function loadAttachments(key){
   el.innerHTML='<div style="color:var(--muted);font-size:12px">載入中...</div>';
   try{
     const attachments=await fetch(`${SERVER}/issue/${key}/attachments`).then(r=>r.json());
-    if(!attachments.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">無附件</div>';return;}
-    el.innerHTML=attachments.map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr);font-size:12px">
-      <span style="font-size:18px">${a.mimeType?.includes('image')?'🖼️':a.mimeType?.includes('pdf')?'📄':'📎'}</span>
-      <div style="flex:1"><div style="font-weight:500">${a.filename}</div><div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">${(a.size/1024).toFixed(1)} KB · ${a.created}</div></div>
-      <a href="${a.content}" target="_blank" style="padding:4px 10px;border:1px solid var(--bdr);border-radius:5px;font-size:11px;color:var(--acc);text-decoration:none;background:var(--surf3)">下載</a>
-    </div>`).join('');
-  }catch(e){el.innerHTML='<div style="color:var(--danger);font-size:12px">載入失敗</div>';}
+    if(!attachments||!attachments.length){
+      el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">無附件</div>';return;
+    }
+    const fmtSize=b=>b>1048576?`${(b/1048576).toFixed(1)}MB`:b>1024?`${(b/1024).toFixed(0)}KB`:`${b}B`;
+    const isImg=a=>a.mimeType?.startsWith('image/');
+    const isPdf=a=>a.mimeType?.includes('pdf');
+    const proxyUrl=a=>`${SERVER}${a.content}`;
+    el.innerHTML=`
+      <div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 0">
+        ${attachments.map(a=>`
+          <div style="width:140px;border:1px solid var(--bdr);border-radius:8px;overflow:hidden;cursor:pointer"
+               onclick="window.open('${proxyUrl(a)}','_blank')">
+            <div style="height:90px;background:var(--surf3);display:flex;align-items:center;justify-content:center;overflow:hidden">
+              ${isImg(a)
+                ?`<img src="${proxyUrl(a)}" style="max-width:100%;max-height:90px;object-fit:cover"
+                      onerror="this.parentElement.innerHTML='🖼️'" loading="lazy">`
+                :`<span style="font-size:32px">${isPdf(a)?'📄':a.mimeType?.includes('zip')?'🗜️':a.mimeType?.includes('sheet')||a.mimeType?.includes('excel')?'📊':a.mimeType?.includes('word')?'📝':'📎'}</span>`
+              }
+            </div>
+            <div style="padding:6px 8px">
+              <div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)"
+                   title="${a.filename}">${a.filename}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmtSize(a.size||0)} · ${a.created||''}</div>
+              <a href="${proxyUrl(a)}" download="${a.filename}"
+                 onclick="event.stopPropagation()"
+                 style="display:inline-block;margin-top:4px;font-size:10px;color:var(--acc);text-decoration:none">⬇ 下載</a>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:12px">載入失敗：${e.message}</div>`;}
 }
 
 // ── 17. Sub-task inline edit in modal ──
