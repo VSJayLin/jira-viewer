@@ -1381,7 +1381,7 @@ th.sorted{color:var(--acc);}
     <button class="tb-btn" id="histBtn" onclick="toggleHist()" title="操作歷史">🕐 歷史</button>
     <button class="tb-btn" id="chartBtn" onclick="document.getElementById('chartModal').style.display='flex';renderChart('status')" title="統計圖表">📊 圖表</button>
     <button class="tb-btn" id="calBtn" onclick="toggleCalendarView()" title="日曆視圖">📅 日曆</button>
-    <button class="my-tickets-btn" id="myTicketsBtn" onclick="filterMyTickets()" title="只顯示指派給我的 tickets">👤 我的</button>
+    
     <button class="tb-btn" id="recentBtn" onclick="toggleRecentPanel()" title="最近查看的 tickets">🕐 最近</button>
     <button class="tb-btn" id="perfBtn" onclick="togglePerfPanel()" title="效能監控">⚡</button>
     <button class="tb-btn" id="globalSearchBtn" onclick="toggleGlobalSearch()" title="全域搜尋 (Ctrl+/)">🔍</button>
@@ -9403,9 +9403,7 @@ setTimeout(()=>{
     });
   }
   const exportBtn=document.getElementById('exportBtn');
-  if(exportBtn&&!document.getElementById('shortUrlBtn')){
-    const b=document.createElement('button');b.id='shortUrlBtn';b.className='tb-btn';b.textContent='🔗 短連結';b.onclick=shareWithShortUrl;exportBtn.after(b);
-  }
+
 
   // Conditional batch + named filter save
   const batchBar=document.getElementById('batchBar');
@@ -9476,11 +9474,7 @@ setTimeout(()=>{
   }
   // Short URL share button
   const exportBtn=document.getElementById('exportBtn');
-  if(exportBtn&&!document.getElementById('shortUrlBtn')){
-    const b=document.createElement('button');b.id='shortUrlBtn';b.className='tb-btn';
-    b.textContent='🔗 短連結';b.title='產生短連結分享';b.onclick=shareWithShortUrl;
-    exportBtn.after(b);
-  }
+
   // Conditional batch button in batch bar
   const batchBar=document.getElementById('batchBar');
   if(batchBar&&!document.getElementById('condBatchBtn')){
