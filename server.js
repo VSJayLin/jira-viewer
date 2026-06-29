@@ -180,7 +180,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // /issue/:key GET
-  if(req.method==='GET'&&p.startsWith('/issue/')&&!p.includes('/transition')&&!p.includes('/comment')&&!p.includes('/subtask')){
+  if(req.method==='GET'&&p.startsWith('/issue/')&&!p.includes('/transition')&&!p.includes('/comment')&&!p.includes('/subtask')&&!p.includes('/attachments')&&!p.includes('/changelog')&&!p.includes('/watchers')&&!p.includes('/timetrack')&&!p.includes('/related')&&!p.includes('/activity')&&!p.includes('/worklog')&&!p.includes('/reactions')&&!p.includes('/votes')){
     const key=p.replace('/issue/','');
     const c=cacheGet(`issue:${key}`,CACHE_TTL.issue);
     if(c){json(res,c);return;}
