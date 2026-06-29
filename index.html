@@ -268,6 +268,24 @@ table.vt th{position:relative;}
 /* ── Filter bar collapse (item 5) ── */
 .fbar-body{transition:max-height .3s,opacity .3s;overflow:hidden;max-height:400px;opacity:1;}
 .fbar-body.collapsed{max-height:0;opacity:0;}
+.unified-search-bar{position:relative;padding:10px 16px 0;background:var(--surf);border-bottom:1px solid var(--bdr);z-index:30;}
+.usb-inner{display:flex;align-items:center;gap:8px;background:var(--surf3);border:1px solid var(--bdr);border-radius:10px;padding:6px 12px;transition:border-color .15s;}
+.usb-inner:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px rgba(0,82,204,.1);}
+.usb-icon{font-size:16px;flex-shrink:0;opacity:.6;}
+.usb-input{flex:1;border:none;background:transparent;font-size:14px;color:var(--dim);outline:none;font-family:'Inter',sans-serif;}
+.usb-input::placeholder{color:var(--muted);}
+.usb-clear{font-size:12px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:4px;opacity:0;transition:opacity .15s;}
+.usb-input:not(:placeholder-shown) ~ .usb-clear{opacity:1;}
+.usb-esc{font-size:10px;color:var(--muted);border:1px solid var(--bdr);border-radius:4px;padding:1px 5px;flex-shrink:0;}
+.search-suggest-dd{display:none;position:absolute;top:100%;left:16px;right:16px;background:var(--surf);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:200;max-height:320px;overflow-y:auto;margin-top:4px;}
+.search-suggest-dd.show{display:block;}
+.ss-group{font-size:10px;font-weight:600;color:var(--muted);padding:6px 12px 2px;text-transform:uppercase;letter-spacing:.5px;}
+.ss-item{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12px;cursor:pointer;border-radius:4px;}
+.ss-item:hover,.ss-item.active{background:var(--acc-l);}
+.ss-key{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--acc);flex-shrink:0;min-width:60px;}
+.ss-summary{flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ss-cmd{font-size:11px;color:var(--dim);}
+.ss-icon{font-size:14px;flex-shrink:0;}
 .fbar-toggle{cursor:pointer;font-size:12px;color:var(--muted);padding:2px 6px;border:1px solid var(--bdr);border-radius:4px;background:transparent;transition:all .15s;font-family:'Inter',sans-serif;}
 .fbar-toggle:hover{border-color:var(--acc);color:var(--acc);}
 /* ── My Tickets button ── */
@@ -1384,7 +1402,7 @@ th.sorted{color:var(--acc);}
     
     <button class="tb-btn" id="recentBtn" onclick="toggleRecentPanel()" title="最近查看的 tickets">🕐 最近</button>
     
-    <button class="tb-btn" id="globalSearchBtn" onclick="toggleGlobalSearch()" title="全域搜尋 (Ctrl+/)">🔍</button>
+
     <div style="position:relative">
       <button class="tb-btn" id="notifBtn" onclick="toggleNotif()">🔔 通知
         <span class="notif-badge" id="notifBadge"></span>
@@ -1441,6 +1459,23 @@ th.sorted{color:var(--acc);}
 <div class="page active" id="page-viewer">
 <div class="v-wrap" id="main-content">
 
+<!-- ── Unified Search Bar ── -->
+<div class="unified-search-bar">
+  <div class="usb-inner">
+    <span class="usb-icon">🔍</span>
+    <input id="f-kw" class="usb-input" aria-label="搜尋" 
+      placeholder="搜尋 Key、標題、Assignee、指令..." 
+      oninput="vApply();showSearchSuggestions(this.value)"
+      onkeydown="handleSearchKey(event)"
+      onfocus="showSearchSuggestions(this.value)"
+      onblur="setTimeout(()=>hideSearchSuggestions(),200)">
+    <span id="usb-clear" class="usb-clear" onclick="document.getElementById('f-kw').value='';vApply();hideSearchSuggestions()" title="清除">✕</span>
+    <kbd class="usb-esc">Esc</kbd>
+  </div>
+  <div id="searchSuggestDD" class="search-suggest-dd"></div>
+</div>
+
+
   <!-- Stats -->
   <div class="stats" style="grid-template-columns:repeat(6,1fr)">
     <div class="stat" id="stat-all" onclick="vStatF('');toggleStatDetail('all',event)">
@@ -1478,7 +1513,7 @@ th.sorted{color:var(--acc);}
     </div>
     <div class="fbar-body" id="fbarBody">
     <div class="frow">
-      <div class="fg wide"><div class="fg-lbl">關鍵字</div><input class="fg-inp" id="f-kw" aria-label="搜尋 tickets" placeholder="Key、標題..." oninput="vApply()"></div>
+
       <div class="fg proj-multi-wrap">
         <div class="fg-lbl" style="display:flex;justify-content:space-between">
           專案
@@ -7509,6 +7544,61 @@ async function importFromGitHub(){
 
 // ── 21. Global search ──
 let _gsActiveIdx=0;
+// ── Unified search suggestions ──
+let _ssIdx = -1;
+function showSearchSuggestions(q){
+  const dd=document.getElementById('searchSuggestDD');if(!dd) return;
+  q=(q||'').trim().toLowerCase();
+  if(!q){dd.classList.remove('show');return;}
+  let html='';
+  // Ticket results
+  const tickets=vAll.filter(i=>
+    i.key.toLowerCase().includes(q)||
+    i.summary.toLowerCase().includes(q)||
+    (i.assignee||'').toLowerCase().includes(q)||
+    (i.status||'').toLowerCase().includes(q)
+  ).slice(0,8);
+  if(tickets.length){
+    html+='<div class="ss-group">Tickets</div>';
+    html+=tickets.map(i=>`<div class="ss-item" onmousedown="event.preventDefault();hideSearchSuggestions();openModal('${i.key}')">
+      <span class="ss-key">${i.key}</span>
+      <span class="ss-summary">${i.summary.slice(0,55)}</span>
+      <span style="font-size:10px;color:var(--muted);flex-shrink:0">${i.status}</span>
+    </div>`).join('');
+  }
+  // Command results
+  if(typeof CMD_REGISTRY!=='undefined'){
+    const cmds=CMD_REGISTRY.filter(cmd=>
+      cmd.label.toLowerCase().includes(q)||(cmd.group||'').toLowerCase().includes(q)
+    ).slice(0,5);
+    if(cmds.length){
+      html+='<div class="ss-group">指令</div>';
+      cmds.forEach((cmd,idx)=>{
+        html+=`<div class="ss-item" data-cmd-idx="${idx}" onmousedown="event.preventDefault();hideSearchSuggestions();(_ssCmds&&_ssCmds[${idx}]?.action&&_ssCmds[${idx}].action())">
+          <span class="ss-icon">${cmd.icon||'⚡'}</span>
+          <span class="ss-cmd">${cmd.label}</span>
+          ${cmd.shortcut?`<kbd style="font-size:9px;color:var(--muted);border:1px solid var(--bdr);border-radius:3px;padding:0 4px;margin-left:auto">${cmd.shortcut}</kbd>`:''}
+        </div>`;
+      });
+      window._ssCmds=cmds;
+    }
+  }
+  if(!html){dd.classList.remove('show');return;}
+  dd.innerHTML=html;dd.classList.add('show');_ssIdx=-1;
+}
+function hideSearchSuggestions(){
+  document.getElementById('searchSuggestDD')?.classList.remove('show');_ssIdx=-1;
+}
+function handleSearchKey(e){
+  const dd=document.getElementById('searchSuggestDD');
+  const items=dd?.querySelectorAll('.ss-item');
+  if(!dd?.classList.contains('show')||!items?.length) return;
+  if(e.key==='ArrowDown'){e.preventDefault();_ssIdx=Math.min(_ssIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===_ssIdx));items[_ssIdx]?.scrollIntoView({block:'nearest'});}
+  else if(e.key==='ArrowUp'){e.preventDefault();_ssIdx=Math.max(_ssIdx-1,-1);items.forEach((el,i)=>el.classList.toggle('active',i===_ssIdx));if(_ssIdx>=0)items[_ssIdx]?.scrollIntoView({block:'nearest'});}
+  else if(e.key==='Enter'&&_ssIdx>=0){e.preventDefault();items[_ssIdx]?.dispatchEvent(new MouseEvent('mousedown'));hideSearchSuggestions();}
+  else if(e.key==='Escape'){hideSearchSuggestions();}
+}
+
 function toggleGlobalSearch(){
   const panel=document.getElementById('globalSearchPanel');if(!panel) return;
   panel.classList.toggle('show');
