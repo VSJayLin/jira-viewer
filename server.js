@@ -29,6 +29,31 @@ function jiraFetch(apiPath) {
     req.on('error', reject); req.end();
   });
 }
+function jiraFetchRaw(apiPath) {
+  return new Promise((resolve, reject) => {
+    const opts = { hostname: JIRA_DOMAIN, path: apiPath, method: 'GET',
+      headers: { 'Authorization': 'Basic '+AUTH, 'Accept': '*/*' }
+    };
+    const req = require('https').request(opts, r => {
+      // Follow redirects (Jira often redirects attachment content)
+      if(r.statusCode===301||r.statusCode===302||r.statusCode===303){
+        const loc=r.headers.location;
+        if(loc){
+          const url=new URL(loc);
+          const opts2={hostname:url.hostname,path:url.pathname+url.search,method:'GET',
+            headers:{'Authorization':'Basic '+AUTH,'Accept':'*/*'}};
+          const req2=require('https').request(opts2,r2=>{
+            resolve({status:r2.statusCode,headers:r2.headers,body:r2});
+          });
+          req2.on('error',reject);req2.end();
+          return;
+        }
+      }
+      resolve({status:r.statusCode,headers:r.headers,body:r});
+    });
+    req.on('error', reject); req.end();
+  });
+}
 function jiraRequest(method, apiPath, body) {
   return new Promise((resolve, reject) => {
     const data = body ? JSON.stringify(body) : null;
@@ -488,10 +513,34 @@ const server = http.createServer(async (req, res) => {
       const d=await jiraFetch(`/rest/api/3/issue/${key}?fields=attachment`);
       const attachments=(d.fields?.attachment||[]).map(a=>({
         id:a.id,filename:a.filename,size:a.size,mimeType:a.mimeType,
-        content:a.content,created:a.created?.slice(0,10)||''
+        // Use our proxy endpoint so browser doesn't need Jira auth
+        content:`/attachment-proxy/${a.id}`,
+        thumbnail:a.thumbnail?`/attachment-proxy/${a.id}?thumb=1`:null,
+        created:a.created?.slice(0,10)||''
       }));
       json(res,attachments);
     }catch(e){json(res,[]);}
+    return;
+  }
+
+  // /attachment-proxy/:id - proxy attachment content with auth (item 16b)
+  if(req.method==='GET'&&p.startsWith('/attachment-proxy/')){
+    const attachId=p.replace('/attachment-proxy/','');
+    const isThumb=parsed.query.thumb==='1';
+    try{
+      const apiUrl=isThumb
+        ?`/rest/api/3/attachment/thumbnail/${attachId}?size=medium`
+        :`/rest/api/3/attachment/content/${attachId}`;
+      const attachRes=await jiraFetchRaw(apiUrl);
+      res.statusCode=attachRes.status||200;
+      // Forward content-type header
+      const ct=attachRes.headers?.['content-type']||'application/octet-stream';
+      res.setHeader('Content-Type',ct);
+      res.setHeader('Access-Control-Allow-Origin','*');
+      res.setHeader('Cache-Control','public, max-age=3600');
+      if(attachRes.body) attachRes.body.pipe(res);
+      else res.end();
+    }catch(e){res.statusCode=500;res.end('proxy error: '+e.message);}
     return;
   }
 
