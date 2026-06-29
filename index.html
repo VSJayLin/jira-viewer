@@ -1517,32 +1517,21 @@ th.sorted{color:var(--acc);}
     <div class="frow">
 
       <div class="fg proj-multi-wrap">
-        <div class="fg-lbl" style="display:flex;justify-content:space-between">
-          專案
-          <span onclick="toggleMultiProj()" style="font-size:9px;color:var(--acc);cursor:pointer;font-weight:500">多選</span>
-        </div>
+<div class="fg-lbl">專案</div>
+
+
+
         <select class="fg-sel proj-multi-trigger" id="f-proj" aria-label="選擇專案" onchange="vOnProj()"><option value="">— 請選擇 —</option></select>
-        <div id="projMultiDropdown" class="proj-multi-dropdown">
-          <div style="padding:8px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--bdr)">多選專案（最多5個）</div>
-          <div id="projMultiList"></div>
-          <div style="padding:8px 12px;border-top:1px solid var(--bdr);display:flex;gap:6px">
-            <button onclick="applyMultiProj()" style="flex:1;padding:5px;background:var(--acc);border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">載入</button>
-            <button onclick="document.getElementById('projMultiDropdown').classList.remove('show')" style="padding:5px 10px;border:1px solid var(--bdr);border-radius:5px;background:transparent;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">取消</button>
-          </div>
-        </div>
       </div>
       <div class="fg"><div class="fg-lbl">看板</div><select class="fg-sel" id="f-board" onchange="vOnBoard()"><option value="">全部</option></select></div>
       <div class="fg"><div class="fg-lbl">Epic</div><select class="fg-sel" id="f-epic" onchange="vOnEpic()"><option value="">全部</option></select></div>
       <div class="fg"><div class="fg-lbl">Status</div><select class="fg-sel" id="f-stat" onchange="vApply()"><option value="">全部</option></select></div>
       <div class="fg multi-filter-wrap">
-        <div class="fg-lbl" style="display:flex;justify-content:space-between">
-          負責人
-          <span onclick="toggleMultiFilter('asgn')" style="font-size:9px;color:var(--acc);cursor:pointer;font-weight:500">多選</span>
-        </div>
+<div class="fg-lbl">負責人</div>
+
+
+
         <select class="fg-sel mf-trigger" id="f-asgn" onchange="vApply()"><option value="">全部</option></select>
-        <div id="mfd-asgn" class="multi-filter-dropdown">
-          <div id="mfl-asgn"></div>
-        </div>
       </div>
       <div class="fg"><div class="fg-lbl">類型</div><select class="fg-sel" id="f-type" onchange="vApply()"><option value="">全部</option></select></div>
       <input type="hidden" id="f-sprint" value="">
