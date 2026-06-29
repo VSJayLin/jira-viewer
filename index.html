@@ -1367,7 +1367,7 @@ th.sorted{color:var(--acc);}
     <button class="tab-btn" id="tab-kanban" onclick="switchTab('kanban')">📌 Kanban</button>
     <button class="tab-btn" id="tab-dashboard" onclick="switchTab('dashboard')">🏠 Dashboard</button>
     <button class="tab-btn" id="tab-timeline" onclick="switchTab('timeline')">📅 Timeline</button>
-    <button class="tab-btn" id="tab-health" onclick="switchTab('health')">🩺 Health</button>
+    <button class="tab-btn" id="tab-health" onclick="switchTab('health')">⚡ Health</button>
     <button class="tab-btn" id="tab-help" onclick="switchTab('help')">❓ 說明</button>
     <button class="tab-btn" id="tab-changelog" onclick="switchTab('changelog')">📋 Changelog</button>
   </div>
@@ -1383,7 +1383,7 @@ th.sorted{color:var(--acc);}
     <button class="tb-btn" id="calBtn" onclick="toggleCalendarView()" title="日曆視圖">📅 日曆</button>
     
     <button class="tb-btn" id="recentBtn" onclick="toggleRecentPanel()" title="最近查看的 tickets">🕐 最近</button>
-    <button class="tb-btn" id="perfBtn" onclick="togglePerfPanel()" title="效能監控">⚡</button>
+    
     <button class="tb-btn" id="globalSearchBtn" onclick="toggleGlobalSearch()" title="全域搜尋 (Ctrl+/)">🔍</button>
     <div style="position:relative">
       <button class="tb-btn" id="notifBtn" onclick="toggleNotif()">🔔 通知
@@ -1681,13 +1681,17 @@ th.sorted{color:var(--acc);}
 <!-- ══ HEALTH CHECK ══ -->
 <div class="page" id="page-health">
   <div style="padding:16px 20px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span style="font-size:15px;font-weight:600">🩺 API Health Check</span>
-    <span style="font-size:12px;color:var(--muted)">所有 endpoint 狀態一覽</span>
-    <button onclick="refreshHealth()" class="tb-btn" style="margin-left:auto">🔄 重新檢查</button>
+    <span style="font-size:15px;font-weight:600">⚡ 效能 &amp; Health</span>
+    <span style="font-size:12px;color:var(--muted)">Server 效能 + API 狀態一覽</span>
+    <button onclick="refreshHealth();refreshPerfInline()" class="tb-btn" style="margin-left:auto">🔄 重新整理</button>
     <button onclick="showWebhookConfig()" class="tb-btn">🔗 設定 Webhook</button>
   </div>
+  <div style="padding:10px 20px 14px;background:var(--surf3);border-bottom:1px solid var(--bdr)">
+    <div style="font-size:11px;font-weight:600;color:var(--dim);margin-bottom:8px">⚡ 效能統計</div>
+    <div id="perfContentInline" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;font-size:11px"></div>
+  </div>
   <div id="healthGrid" class="health-grid">
-    <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">點擊「重新檢查」開始測試</div>
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">點擊「重新整理」開始測試</div>
   </div>
 </div>
 
@@ -6351,6 +6355,34 @@ function setupTokenExpiryDetection(){
 }
 
 // ── 24. Perf monitor panel ──
+async function refreshPerfInline(){
+  const content=document.getElementById('perfContentInline');
+  if(!content) return;
+  content.innerHTML='<div style="color:var(--muted)">載入中...</div>';
+  try{
+    const data=await fetch(`${SERVER}/perf`).then(r=>r.json());
+    const avgC=data.avgMs<200?'var(--success)':data.avgMs<500?'var(--warn)':'var(--danger)';
+    const cacheC=data.cacheRate>60?'var(--success)':data.cacheRate>30?'var(--warn)':'var(--muted)';
+    content.innerHTML=[
+      ['總請求數', data.requests||0, 'var(--dim)'],
+      ['平均回應', `${data.avgMs||0} ms`, avgC],
+      ['快取命中率', `${data.cacheRate||0}%`, cacheC],
+      ['快取項目', data.cacheSize||0, 'var(--dim)'],
+      ['錯誤次數', data.errors||0, data.errors>0?'var(--danger)':'var(--success)'],
+      ['運行時間', `${Math.floor((data.uptime||0)/60)}分${String((data.uptime||0)%60).padStart(2,'0')}秒`, 'var(--dim)'],
+    ].map(([k,v,col])=>`<div style="background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:8px 12px">
+      <div style="color:var(--muted);font-size:10px;margin-bottom:2px">${k}</div>
+      <div style="color:${col};font-weight:600;font-size:13px">${v}</div>
+    </div>`).join('');
+    if(data.slowest?.length){
+      content.insertAdjacentHTML('beforeend',`<div style="grid-column:1/-1;background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:8px 12px">
+        <div style="color:var(--muted);font-size:10px;margin-bottom:4px">最慢的請求</div>
+        ${data.slowest.slice(0,3).map(s=>`<div style="font-size:11px;color:var(--dim)">${s.url||''} <span style="color:var(--warn)">${s.ms}ms</span></div>`).join('')}
+      </div>`);
+    }
+  }catch(e){if(content)content.innerHTML='<div style="color:var(--danger)">無法取得效能資料</div>';}
+}
+
 async function refreshPerfPanel(){
   try{
     const data=await fetch(`${SERVER}/perf`).then(r=>r.json());
@@ -8212,7 +8244,7 @@ function switchTab(t){
   if(t==='kanban'){if(typeof renderKanban==='function')renderKanban();setTimeout(applyKbDueColors,300);}
   if(t==='dashboard'){if(typeof renderDashboard==='function')renderDashboard();}
   if(t==='timeline'){if(typeof renderTimeline==='function')renderTimeline();}
-  if(t==='health'){setTimeout(()=>{if(typeof refreshHealth==='function')refreshHealth();},100);}
+  if(t==='health'){setTimeout(()=>{if(typeof refreshHealth==='function')refreshHealth();if(typeof refreshPerfInline==='function')refreshPerfInline();},100);}
   if(t==='help'){if(typeof renderHelpPage==='function')renderHelpPage();}
   if(t==='changelog'){if(typeof renderChangelog==='function')renderChangelog();}
 }
@@ -9675,7 +9707,7 @@ setTimeout(()=>{
     <button onclick="document.getElementById('perfPanel').classList.remove('show')" style="border:none;background:transparent;cursor:pointer;color:var(--muted)">✕</button>
   </div>
   <div id="perfContent"></div>
-  <button onclick="refreshPerfPanel()" style="margin-top:8px;width:100%;padding:5px;border:1px solid var(--bdr);border-radius:5px;background:transparent;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">🔄 更新</button>
+  <button onclick="event.stopPropagation();refreshPerfPanel()" style="margin-top:8px;width:100%;padding:5px;border:1px solid var(--bdr);border-radius:5px;background:transparent;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">🔄 更新</button>
 </div>
 
 <!-- Share toast (item 21) -->
