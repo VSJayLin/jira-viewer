@@ -1200,7 +1200,7 @@ table.vt th{position:relative;}
 /* ── Color mark button ── */
 .cm-btn{visibility:hidden;padding:1px 4px;border:none;background:transparent;cursor:pointer;font-size:10px;opacity:.5;}
 .cm-btn:hover{opacity:1;}
-table.vt tbody tr:hover .cm-btn{display:inline;}
+table.vt tbody tr:hover .cm-btn{visibility:visible;}
 /* ── Outbound webhook config ── */
 .webhook-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bdr);font-size:11px;}
 .webhook-item:last-child{border-bottom:none;}
@@ -5578,7 +5578,7 @@ function buildRowHtml(i){
     <td style="padding:6px 2px;width:20px"><span style="font-size:10px;color:var(--muted);cursor:pointer" onclick="event.stopPropagation();toggleExpand('${i.key}')" id="ebx2-${i.key}">▶</span></td>
     <td data-col="type" style="font-size:10px;color:var(--dim);white-space:nowrap;${visCols.has('type')?'':'display:none'}">${TIPO[i.type]||'📄'} ${i.type}</td>
     <td class="td-key" onclick="event.stopPropagation()"><a href="${i.url}" target="_blank">${i.key}</a></td>
-    <td class="td-sum"><span>${i.summary.slice(0,80)}${i.summary.length>80?'...':''}</span></td>
+    <td class="td-sum"><span class="sum-text">${i.summary.slice(0,80)}${i.summary.length>80?'...':''}</span><span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditSum('${i.key}',this.closest('td'))" title="編輯">✏</span><button class="cm-btn" onclick="event.stopPropagation();showColorMarkPicker('${i.key}',this)" title="標記顏色">🎨</button></td>
     <td data-col="status" style="${visCols.has('status')?'':'display:none'}"><span class="badge ${bCls(i.statusCat)}">${i.status}</span></td>
     <td data-col="priority" style="font-size:10px;font-weight:600;color:${pc};${visCols.has('priority')?'':'display:none'}">${i.priority||'—'}</td>
     <td data-col="assignee" class="td-per" style="${visCols.has('assignee')?'':'display:none'}">${i.assignee||'—'}</td>
@@ -7154,10 +7154,10 @@ function vRenderTableRAF(data){
         <td data-col="type" style="font-size:10px;color:var(--dim);white-space:nowrap;${visCols.has('type')?'':'display:none'}">${TIPO[item.type]||'📄'} ${item.type}</td>
         <td class="td-key" onclick="event.stopPropagation()"><a href="${item.url}" target="_blank">${item.key}</a></td>
         <td class="td-sum" title="${item.summary.replace(/"/g,'&quot;')}">
-          ${cm?'':`<button class="cm-btn" onclick="event.stopPropagation();showColorMarkPicker('${item.key}',this)" title="標記顏色">🎨</button>`}
           <span class="sum-text">${hlText(item.summary)}</span>
           ${item.subtaskCount>0?`<span class="sub-badge">${item.subtaskCount}</span>`:''}
           <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditSum('${item.key}',this.closest('td'))" title="編輯">✏</span>
+          <button class="cm-btn" onclick="event.stopPropagation();showColorMarkPicker('${item.key}',this)" title="標記顏色">🎨</button>
         </td>
         <td data-col="status" style="${visCols.has('status')?'':'display:none'}"><span class="badge ${bCls(item.statusCat)}">${item.status}</span><span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditStatus('${item.key}',this)">✏</span></td>
         <td data-col="priority" style="font-size:10px;font-weight:600;color:${pc};${visCols.has('priority')?'':'display:none'}">${item.priority||'—'}<span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditPriority('${item.key}',this)">✏</span></td>
