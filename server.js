@@ -510,16 +510,18 @@ const server = http.createServer(async (req, res) => {
   if(req.method==='GET'&&p.match(/^\/issue\/[^/]+\/attachments$/)){
     const key=p.split('/')[2];
     try{
-      const d=await jiraFetch(`/rest/api/3/issue/${key}?fields=attachment`);
-      const attachments=(d.fields?.attachment||[]).map(a=>({
+      // Try to get attachments - some Jira configs need expand parameter
+      const d=await jiraFetch(`/rest/api/3/issue/${key}?fields=attachment,comment&expand=attachment`);
+      const rawAttachments=d.fields?.attachment||[];
+      console.log(`[attachments] key=${key} count=${rawAttachments.length} error=${d.errorMessages||d.errors||''}`);
+      const attachments=rawAttachments.map(a=>({
         id:a.id,filename:a.filename,size:a.size,mimeType:a.mimeType,
-        // Use our proxy endpoint so browser doesn't need Jira auth
         content:`/attachment-proxy/${a.id}`,
         thumbnail:a.thumbnail?`/attachment-proxy/${a.id}?thumb=1`:null,
         created:a.created?.slice(0,10)||''
       }));
       json(res,attachments);
-    }catch(e){json(res,[]);}
+    }catch(e){console.log(`[attachments] ERROR key=${key}:`,e.message);json(res,[]);}
     return;
   }
 
