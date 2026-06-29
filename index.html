@@ -1767,7 +1767,13 @@ th.sorted{color:var(--acc);}
       <button onclick="applyCreatorBatch()" style="padding:3px 10px;background:var(--purple);border:none;border-radius:4px;color:white;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">套用</button>
       <button onclick="clearCreatorSelect()" style="padding:3px 8px;border:1px solid var(--bdr);border-radius:4px;background:transparent;font-size:11px;cursor:pointer;color:var(--muted);font-family:'Inter',sans-serif">取消</button>
     </div>
-    <div class="c-tbl-wrap">
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bdr);margin-bottom:8px;flex-wrap:wrap">
+  <span style="font-size:12px;font-weight:600;color:var(--dim);white-space:nowrap">📱 機種前綴</span>
+  <input id="c-model-prefix" class="ci" placeholder="例：IFPG1-2（留空不加前綴）" style="width:220px;font-family:'JetBrains Mono',monospace;font-size:12px" oninput="cUpdateModelPreview()">
+  <span id="c-model-preview" style="font-size:11px;color:var(--muted)"></span>
+  <span style="font-size:10px;color:var(--muted);margin-left:auto">💡 匯入 Excel 時自動從 B1 讀取機種名</span>
+</div>
+<div class="c-tbl-wrap">
       <table class="ct">
         <thead><tr>
           <th style="width:24px">#</th>
@@ -3067,6 +3073,29 @@ async function cConfirm(){
   btn.disabled=false;btn.textContent='確認 →';
 }
 
+// ── Model Prefix helpers ──
+function cGetModelPrefix(){
+  const raw=(document.getElementById('c-model-prefix')?.value||'').trim();
+  if(!raw) return '';
+  // Normalize: if user typed "[OC-35]" keep it, if typed "OC-35" wrap it
+  if(raw.startsWith('[')&&raw.endsWith(']')) return raw+' ';
+  return '['+raw+'] ';
+}
+function cUpdateModelPreview(){
+  const prefix=cGetModelPrefix();
+  const el=document.getElementById('c-model-preview');
+  if(!el) return;
+  if(prefix) el.textContent='→ Summary 將顯示為：'+prefix+'Ticket Summary...';
+  else el.textContent='';
+}
+function cApplyModelPrefix(summary){
+  const prefix=cGetModelPrefix();
+  if(!prefix) return summary;
+  // Don't add prefix if summary already starts with [xxx]
+  if(/^\[.+?\]\s/.test(summary)) return summary;
+  return prefix+summary;
+}
+
 function cAddRow(dS='',dD='',dDue='',dTypeId='',dAsgId='',dPrioId='',dLabels='',dParent='',dEpic=''){
   cRowId++;const id=cRowId;
   const tr=document.createElement('tr');tr.id='c-r-'+id;tr.dataset.id=id;
@@ -3106,7 +3135,8 @@ function cUpdateSum(){
 function cGetRows(){
   return[...document.getElementById('c-body').querySelectorAll('tr')].map(tr=>{
     const id=tr.dataset.id;
-    const summary=(document.getElementById('c-s-'+id)?.value||'').trim();
+    const summaryRaw=(document.getElementById('c-s-'+id)?.value||'').trim();
+    const summary=cApplyModelPrefix(summaryRaw);
     const description=(document.getElementById('c-d-'+id)?.value||'').trim();
     const issueTypeId=document.getElementById('c-t-'+id)?.value||'';
     const priorityId=document.getElementById('c-p-'+id)?.value||'';
@@ -3219,6 +3249,16 @@ function cImportExcel(input){
         if(typeof val==='number'&&val>40000){const d=XLSX.SSF.parse_date_code(val);if(d)return`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
         const s=String(val).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;return '';
       }
+      // Read B1 cell as model name (row index 0, col index 1)
+      const b1Cell=rows[0]?String(rows[0][1]||'').trim():'';
+      if(b1Cell){
+        const prefixInput=document.getElementById('c-model-prefix');
+        if(prefixInput&&!prefixInput.value.trim()){
+          prefixInput.value=b1Cell;
+          cUpdateModelPreview();
+          showUndoToast('📱 已從 B1 讀取機種名：'+b1Cell);
+        }
+      }
       // Parse rows
       pendingImport=[];
       for(let i=hi+1;i<rows.length;i++){
@@ -3248,8 +3288,9 @@ function showImportPreview(rows){
   const preview=document.getElementById('xlPreview');
   preview.classList.add('show');
   document.getElementById('xlPreviewCount').textContent=`共 ${rows.length} 筆`;
+  const prefix=cGetModelPrefix();
   const html=`<table class="xl-tbl">
-    <thead><tr><th>#</th><th>Summary</th><th>類型</th><th>負責人</th><th>Priority</th><th>Due Date</th></tr></thead>
+    <thead><tr><th>#</th><th>Summary ${prefix?'<span style="color:var(--acc);font-size:10px">(將加上'+prefix.trim()+')</span>':''}</th><th>類型</th><th>負責人</th><th>Priority</th><th>Due Date</th></tr></thead>
     <tbody>${rows.slice(0,20).map((r,i)=>`<tr><td>${i+1}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.summary}</td><td>${r.issueTypeStr}</td><td>${r.assigneeStr}</td><td>${r.priorityStr}</td><td>${r.duedate}</td></tr>`).join('')}
     ${rows.length>20?`<tr><td colspan="6" style="color:var(--muted);text-align:center">...以及其他 ${rows.length-20} 筆</td></tr>`:''}</tbody>
   </table>`;
@@ -3263,7 +3304,7 @@ function cConfirmImport(){
     const mt=cMeta.issueTypes.find(t=>t.name.toLowerCase()===r.issueTypeStr.toLowerCase()||t.name.toLowerCase().includes(r.issueTypeStr.toLowerCase())||r.issueTypeStr.toLowerCase().includes(t.name.toLowerCase()));
     const ma=r.assigneeStr?cMeta.assignees.find(u=>u.displayName.toLowerCase()===r.assigneeStr.toLowerCase()||u.displayName.toLowerCase().includes(r.assigneeStr.toLowerCase())||r.assigneeStr.toLowerCase().includes(u.displayName.toLowerCase())):null;
     const mp=r.priorityStr?cMeta.priorities.find(p=>p.name.toLowerCase()===r.priorityStr.toLowerCase()||p.name.toLowerCase().includes(r.priorityStr.toLowerCase())||r.priorityStr.toLowerCase().includes(p.name.toLowerCase())):null;
-    cAddRow(r.summary,r.desc,r.duedate,mt?.id||'',ma?.accountId||'',mp?.id||'');
+    cAddRow(cApplyModelPrefix(r.summary),r.desc,r.duedate,mt?.id||'',ma?.accountId||'',mp?.id||'');
     imported++;
   });
   cUpdateCnt();cUpdateSum();
@@ -8990,7 +9031,7 @@ function setupExcelPasteCreator(){
       const due=ci.due>=0&&cols[ci.due]?(cols[ci.due]||'').trim():'';
       const typeStr=ci.type>=0&&cols[ci.type]?(cols[ci.type]||'').trim():'';
       const mt=cMeta.issueTypes.find(t=>t.name.toLowerCase()===typeStr.toLowerCase());
-      cAddRow(summary,desc,due,mt?.id||'','','','','');count++;
+      cAddRow(cApplyModelPrefix(summary),desc,due,mt?.id||'','','','','');count++;
     });
     if(count>0){cUpdateCnt();cUpdateSum();showUndoToast(`✅ 已從剪貼簿貼入 ${count} 筆資料`);}
     trackUsage('pasteExcel');
