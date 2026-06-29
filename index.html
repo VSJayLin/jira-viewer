@@ -23,7 +23,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .logo svg{width:13px;height:13px;fill:white;}
 .tb-title{font-size:13px;font-weight:500;white-space:nowrap;}
 .tb-sep{width:1px;height:18px;background:var(--bdr);flex-shrink:0;}
-.tb-ts{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+.tb-ts{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
 .tab-bar{display:flex;gap:3px;}
 .tab-btn{padding:5px 12px;border:1px solid var(--bdr);border-radius:6px;background:transparent;color:var(--muted);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .tab-btn:hover{border-color:var(--acc);color:var(--acc);}
@@ -1398,7 +1398,7 @@ th.sorted{color:var(--acc);}
     </select>
 
     <button onclick="toggleShortcuts()" class="tb-btn" title="快捷鍵說明 (?)">⌨ ?</button>
-    <span id="serverStatus" title="Server 狀態" style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);padding:3px 8px;background:var(--surf3,#f0f2f5);border-radius:5px;cursor:pointer" onclick="pingServer()">
+    <span id="serverStatus" title="Server 狀態" style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);padding:3px 8px;background:var(--surf3,#f0f2f5);border-radius:5px;cursor:pointer;max-width:130px;overflow:hidden" onclick="pingServer()">
       <span id="serverDot" style="width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0"></span>
       <span id="serverLabel">連線中...</span><span class="live-badge" id="liveBadge" title="即時更新已連線"></span>
     </span>
@@ -2079,10 +2079,23 @@ function vUpdateStats(){
 function vApplyDebounced(){clearTimeout(_debounceT);_debounceT=setTimeout(vApply,300);}
 
 
-function vSortCmp(a,b,key,asc){
-  if(key==='key'){const na=parseInt(a.key.replace(/^[^-]+-/,''))||0,nb=parseInt(b.key.replace(/^[^-]+-/,''))||0;return asc?na-nb:nb-na;}
-  const va=a[key]||'',vb=b[key]||'';
-  return asc?va.localeCompare(vb):vb.localeCompare(va);
+function vSortCmp(a,b,sortKeysArr){
+  if(!Array.isArray(sortKeysArr)) return 0;
+  for(const {k,a:asc} of sortKeysArr){
+    let r=0;
+    if(k==='key'){
+      const na=parseInt((a.key||'').replace(/^[^-]+-/,''))||0;
+      const nb=parseInt((b.key||'').replace(/^[^-]+-/,''))||0;
+      r=na-nb;
+    } else if(k==='storypoints'||k==='subtaskCount'){
+      r=(parseFloat(a[k])||0)-(parseFloat(b[k])||0);
+    } else {
+      const va=String(a[k]||''),vb=String(b[k]||'');
+      r=va.localeCompare(vb,'zh-TW',{numeric:true});
+    }
+    if(r!==0) return asc?r:-r;
+  }
+  return 0;
 }
 
 function bCls(cat){return cat==='indeterminate'?'b-prog':cat==='done'?'b-done':'b-todo';}
@@ -2206,11 +2219,11 @@ function vUpdateSyncTime(){
   const mins=Math.floor(cacheTtlMs/60000);
   let c=Math.floor(cacheTtlMs/1000);
   if(window._ct) clearInterval(window._ct);
-  ts.textContent=`上次同步：${hms}　下次：${mins}:00`;
+  ts.textContent=`${hms} 下次 ${mins}:00`;
   window._ct=setInterval(()=>{
     c--;
-    if(c<=0){clearInterval(window._ct);ts.textContent=`上次同步：${hms}`;return;}
-    ts.textContent=`上次同步：${hms}　下次：${Math.floor(c/60)}:${String(c%60).padStart(2,'0')}`;
+    if(c<=0){clearInterval(window._ct);ts.textContent=hms;return;}
+    ts.textContent=`${hms} ↻${Math.floor(c/60)}:${String(c%60).padStart(2,'0')}`;
   },1000);
 }
 
