@@ -5047,7 +5047,7 @@ function renderKanbanCol(status,items,cat){
       ${status}<span class="kb-count" style="${wip>0&&count>wip?'background:var(--danger);color:white':''}">${count}${wip>0?`/${wip}`:''}</span>
       <span style="margin-left:auto;font-size:11px">${collapsed?'▶':'▼'}</span>
     </div>
-    ${!collapsed?items.slice(0,30).map(i=>{
+    ${!collapsed?items.map(i=>{
       const od=i.duedate&&i.duedate!=='—'&&i.duedate<today&&i.statusCat!=='done';
       return `<div class="kb-card" draggable="true" ondragstart="kbDragStart(event,'${i.key}')" onclick="openModal('${i.key}')">
         <div class="kb-key">${i.key}</div>
@@ -5059,7 +5059,7 @@ function renderKanbanCol(status,items,cat){
           ${i.duedate&&i.duedate!=='—'?`<span style="font-size:9px;${od?'color:var(--danger);font-weight:600':''}">${i.duedate.slice(5)}</span>`:''}
         </div>
       </div>`;
-    }).join('')+(items.length>30?`<div style="padding:6px;text-align:center;font-size:10px;color:var(--muted)">...另 ${items.length-30} 筆</div>`:''):''}
+    }).join(''):''}
   </div>`;
 }
 
