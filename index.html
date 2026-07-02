@@ -2530,21 +2530,12 @@ function _renderModalBase(issue,transitions,meta,allStatuses=[]){
           <div class="mfield">
             <label>Status</label>
             <span class="badge ${bCls(f.status?.statusCategory?.key||'')}" id="m-status-badge">${f.status?.name||'—'}</span>
-            <div style="margin-top:6px">
+            ${transitions.length?`<div style="margin-top:6px">
               <select id="m-status-sel" onchange="doTransitionFromSel('${issue.key}',this)" style="width:100%;border:1px solid var(--bdr);border-radius:5px;padding:6px 8px;font-size:12px;color:var(--text);background:var(--surf2);outline:none;cursor:pointer;font-family:'Inter',sans-serif">
-                <option value="">── 選擇狀態 ──</option>
-                ${(()=>{
-                  const statusList=allStatuses.length?allStatuses:transitions.map(t=>t.name);
-                  return statusList.map(sName=>{
-                    const trans=transitions.find(t=>t.name===sName);
-                    const isCurrent=f.status?.name===sName;
-                    const val=trans?trans.id+'|'+trans.name:'__name__'+sName;
-                    return '<option value="'+val+'"'+(isCurrent?' disabled':'')+'>'+
-                      (isCurrent?'▶ ':'')+ sName+(isCurrent?' (目前)':'')+'</option>';
-                  }).join('');
-                })()}
+                <option value="">── 可轉換的狀態（共${transitions.length}個）──</option>
+                ${transitions.map(t=>`<option value="${t.id}|${t.name}">${t.name}</option>`).join('')}
               </select>
-            </div>
+            </div>`:`<div style="margin-top:6px;font-size:11px;color:var(--muted);padding:4px 0">此狀態無可用轉換</div>`}
           </div>
           <div class="mfield">
             <label>Assignee</label>
@@ -4055,23 +4046,23 @@ async function _openModal(key){
   document.title=`${key} — JIRA Tools`;
   // Check preload cache
   if(_preloadCache.has(key)){
-    const{issue,transitions,meta}=_preloadCache.get(key);
-    renderModal(issue,transitions,meta,allStatuses);
-    // Preload neighbours
+    const{issue,meta}=_preloadCache.get(key);
+    const freshTrans=await fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]);
+    renderModal(issue,freshTrans,meta,[]);
     if(modalIdx+1<modalList.length) preloadModal(modalList[modalIdx+1]);
     if(modalIdx-1>=0) preloadModal(modalList[modalIdx-1]);
     return;
   }
   document.getElementById('mBody').innerHTML='<div class="mloading"><div class="v-spin"></div>載入中...</div>';
   try{
-    const[issue,transitions,meta,allStatuses]=await Promise.all([
+    const[issue,transitions,meta]=await Promise.all([
       fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
       fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
       vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null),
-      vProj?fetch(`${SERVER}/statuses?project=${vProj}`).then(r=>r.json()).catch(()=>[]):Promise.resolve([])
+      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
     ]);
-    _preloadCache.set(key,{issue,transitions,meta,allStatuses});
-    renderModal(issue,transitions,meta,allStatuses);
+    _preloadCache.set(key,{issue,meta});
+    renderModal(issue,transitions,meta,[]);
     if(modalIdx+1<modalList.length) preloadModal(modalList[modalIdx+1]);
     if(modalIdx-1>=0) preloadModal(modalList[modalIdx-1]);
   }catch(e){document.getElementById('mBody').innerHTML=`<div class="mloading">❌ 載入失敗：${e.message}</div>`;}
