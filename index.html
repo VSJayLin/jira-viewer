@@ -2534,15 +2534,13 @@ function _renderModalBase(issue,transitions,meta,allStatuses=[]){
               <select id="m-status-sel" onchange="doTransitionFromSel('${issue.key}',this)" style="width:100%;border:1px solid var(--bdr);border-radius:5px;padding:6px 8px;font-size:12px;color:var(--text);background:var(--surf2);outline:none;cursor:pointer;font-family:'Inter',sans-serif">
                 <option value="">── 選擇狀態 ──</option>
                 ${(()=>{
-                  const availIds=new Set(transitions.map(t=>t.name));
                   const statusList=allStatuses.length?allStatuses:transitions.map(t=>t.name);
                   return statusList.map(sName=>{
                     const trans=transitions.find(t=>t.name===sName);
                     const isCurrent=f.status?.name===sName;
-                    const canTrans=!!trans;
-                    const val=trans?trans.id+'|'+trans.name:'';
-                    return '<option value="'+val+'"'+(isCurrent?' disabled':'')+(!canTrans&&!isCurrent?' disabled style="color:#aaa"':'')+'>'+
-                      (isCurrent?'▶ ':canTrans?'→ ':'⊘ ')+sName+(isCurrent?' (目前)':!canTrans?' (需管理員)':'')+'</option>';
+                    const val=trans?trans.id+'|'+trans.name:'__name__'+sName;
+                    return '<option value="'+val+'"'+(isCurrent?' disabled':'')+'>'+
+                      (isCurrent?'▶ ':'')+ sName+(isCurrent?' (目前)':'')+'</option>';
                   }).join('');
                 })()}
               </select>
@@ -6158,8 +6156,18 @@ function addChartModalButtons(){
 // ── Also record ops for transition/assign ──
 
 function doTransitionFromSel(key,sel){
-  const val=sel?.value;if(val){const[transId,transName]=val.split('|');recordOp('transition',{key,transitionId:transId,status:transName});}
-  if(val){const[transId,transName]=val.split('|');doTransition(key,transId,transName,sel);}
+  if(!sel||!sel.value) return;
+  const val=sel.value;
+  if(val.startsWith('__name__')){
+    // No transition ID - look up by name via server
+    const statusName=val.replace('__name__','');
+    recordOp('transition',{key,transitionId:'',status:statusName});
+    doTransition(key,statusName,statusName,sel);
+  } else {
+    const[transId,transName]=val.split('|');
+    recordOp('transition',{key,transitionId:transId,status:transName});
+    doTransition(key,transId,transName,sel);
+  }
 }
 
 // ── Add 'From Key' btn observer for creator ──
