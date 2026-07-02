@@ -2496,7 +2496,7 @@ function extractText(doc){
   return walk(doc).trim();
 }
 
-function _renderModalBase(issue,transitions,meta){
+function _renderModalBase(issue,transitions,meta,allStatuses=[]){
   const f=issue.fields||{};
   const desc=extractText(f.description);
   const comments=(f.comment?.comments||[]).slice(-5).reverse();
@@ -2530,12 +2530,23 @@ function _renderModalBase(issue,transitions,meta){
           <div class="mfield">
             <label>Status</label>
             <span class="badge ${bCls(f.status?.statusCategory?.key||'')}" id="m-status-badge">${f.status?.name||'—'}</span>
-            ${transitions.length?`<div style="margin-top:6px">
+            <div style="margin-top:6px">
               <select id="m-status-sel" onchange="doTransitionFromSel('${issue.key}',this)" style="width:100%;border:1px solid var(--bdr);border-radius:5px;padding:6px 8px;font-size:12px;color:var(--text);background:var(--surf2);outline:none;cursor:pointer;font-family:'Inter',sans-serif">
-                <option value="">— 切換狀態 —</option>
-                ${transitions.map(t=>`<option value="${t.id}|${t.name}">${t.name}</option>`).join('')}
+                <option value="">── 選擇狀態 ──</option>
+                ${(()=>{
+                  const availIds=new Set(transitions.map(t=>t.name));
+                  const statusList=allStatuses.length?allStatuses:transitions.map(t=>t.name);
+                  return statusList.map(sName=>{
+                    const trans=transitions.find(t=>t.name===sName);
+                    const isCurrent=f.status?.name===sName;
+                    const canTrans=!!trans;
+                    const val=trans?trans.id+'|'+trans.name:'';
+                    return '<option value="'+val+'"'+(isCurrent?' disabled':'')+(!canTrans&&!isCurrent?' disabled style="color:#aaa"':'')+'>'+
+                      (isCurrent?'▶ ':canTrans?'→ ':'⊘ ')+sName+(isCurrent?' (目前)':!canTrans?' (需管理員)':'')+'</option>';
+                  }).join('');
+                })()}
               </select>
-            </div>`:''}
+            </div>
           </div>
           <div class="mfield">
             <label>Assignee</label>
@@ -2674,10 +2685,10 @@ function _renderModalBase(issue,transitions,meta){
 }
 
 // ── Unified renderModal (replaces all broken override chain) ──
-function renderModal(issue,transitions,meta){
+function renderModal(issue,transitions,meta,allStatuses=[]){
   const iKey=issue?.key||curModalKey;
   // Call base rendering
-  _renderModalBase(issue,transitions,meta);
+  _renderModalBase(issue,transitions,meta,allStatuses);
   debugLog('info',`Modal opened: ${iKey}`);
   trackUsage('openModal');
   setTimeout(()=>{
@@ -4024,10 +4035,11 @@ const _preloadCache=new Map();
 async function preloadModal(key){
   if(_preloadCache.has(key)) return;
   try{
-    const[issue,transitions,meta]=await Promise.all([
+    const[issue,transitions,meta,allStatuses]=await Promise.all([
       fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
       fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
-      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
+      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null),
+      vProj?fetch(`${SERVER}/statuses?project=${vProj}`).then(r=>r.json()).catch(()=>[]):Promise.resolve([])
     ]);
     _preloadCache.set(key,{issue,transitions,meta});
   }catch(e){}
@@ -4046,7 +4058,7 @@ async function _openModal(key){
   // Check preload cache
   if(_preloadCache.has(key)){
     const{issue,transitions,meta}=_preloadCache.get(key);
-    renderModal(issue,transitions,meta);
+    renderModal(issue,transitions,meta,allStatuses);
     // Preload neighbours
     if(modalIdx+1<modalList.length) preloadModal(modalList[modalIdx+1]);
     if(modalIdx-1>=0) preloadModal(modalList[modalIdx-1]);
@@ -4060,7 +4072,7 @@ async function _openModal(key){
       vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
     ]);
     _preloadCache.set(key,{issue,transitions,meta});
-    renderModal(issue,transitions,meta);
+    renderModal(issue,transitions,meta,allStatuses);
     // Preload neighbours
     if(modalIdx+1<modalList.length) preloadModal(modalList[modalIdx+1]);
     if(modalIdx-1>=0) preloadModal(modalList[modalIdx-1]);
