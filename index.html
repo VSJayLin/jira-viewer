@@ -4066,14 +4066,14 @@ async function _openModal(key){
   }
   document.getElementById('mBody').innerHTML='<div class="mloading"><div class="v-spin"></div>載入中...</div>';
   try{
-    const[issue,transitions,meta]=await Promise.all([
+    const[issue,transitions,meta,allStatuses]=await Promise.all([
       fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
       fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
-      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
+      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null),
+      vProj?fetch(`${SERVER}/statuses?project=${vProj}`).then(r=>r.json()).catch(()=>[]):Promise.resolve([])
     ]);
-    _preloadCache.set(key,{issue,transitions,meta});
+    _preloadCache.set(key,{issue,transitions,meta,allStatuses});
     renderModal(issue,transitions,meta,allStatuses);
-    // Preload neighbours
     if(modalIdx+1<modalList.length) preloadModal(modalList[modalIdx+1]);
     if(modalIdx-1>=0) preloadModal(modalList[modalIdx-1]);
   }catch(e){document.getElementById('mBody').innerHTML=`<div class="mloading">❌ 載入失敗：${e.message}</div>`;}
