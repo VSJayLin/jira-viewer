@@ -3777,40 +3777,90 @@ function toggleMdPreview(){
 }
 
 // ── 16. Attachments in modal ──
+// Attachment state
+let _attView='grid'; // 'grid' | 'list'
+let _attSort='date-desc'; // 'date-desc' | 'date-asc' | 'name-asc'
+let _attData=[];
+let _attKey='';
+
+function renderAttachments(){
+  const el=document.getElementById('m-attachments-content');if(!el) return;
+  const fmtSize=b=>b>1048576?`${(b/1048576).toFixed(1)}MB`:b>1024?`${(b/1024).toFixed(0)}KB`:`${b}B`;
+  const isImg=a=>a.mimeType?.startsWith('image/');
+  const isPdf=a=>a.mimeType?.includes('pdf');
+  const getIcon=a=>isPdf(a)?'📄':a.mimeType?.includes('zip')?'🗜️':a.mimeType?.includes('sheet')||a.mimeType?.includes('excel')?'📊':a.mimeType?.includes('word')?'📝':a.mimeType?.startsWith('video/')?'🎬':a.mimeType?.startsWith('audio/')?'🎵':'📎';
+  const proxyUrl=a=>`${SERVER}${a.content}`;
+
+  // Sort
+  let sorted=[..._attData];
+  if(_attSort==='date-desc') sorted.sort((a,b)=>(b.created||'').localeCompare(a.created||''));
+  else if(_attSort==='date-asc') sorted.sort((a,b)=>(a.created||'').localeCompare(b.created||''));
+  else sorted.sort((a,b)=>a.filename.localeCompare(b.filename));
+
+  // Toolbar
+  const toolbar=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bdr);margin-bottom:10px;flex-wrap:wrap">
+    <span style="font-size:11px;color:var(--muted)">${_attData.length} 個附件</span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+      <select onchange="_attSort=this.value;renderAttachments()" style="font-size:11px;padding:3px 6px;border:1px solid var(--bdr);border-radius:5px;background:var(--surf);color:var(--dim);cursor:pointer">
+        <option value="date-desc" ${_attSort==='date-desc'?'selected':''}>⬇ 最新在前</option>
+        <option value="date-asc" ${_attSort==='date-asc'?'selected':''}>⬆ 最舊在前</option>
+        <option value="name-asc" ${_attSort==='name-asc'?'selected':''}>🔤 名稱排序</option>
+      </select>
+      <button onclick="_attView='grid';renderAttachments()" style="padding:3px 8px;border:1px solid var(--bdr);border-radius:5px;font-size:12px;cursor:pointer;background:${_attView==='grid'?'var(--acc)':'var(--surf)'};color:${_attView==='grid'?'white':'var(--dim)'}" title="格窗">⊞</button>
+      <button onclick="_attView='list';renderAttachments()" style="padding:3px 8px;border:1px solid var(--bdr);border-radius:5px;font-size:12px;cursor:pointer;background:${_attView==='list'?'var(--acc)':'var(--surf)'};color:${_attView==='list'?'white':'var(--dim)'}" title="清單">☰</button>
+    </div>
+  </div>`;
+
+  // Grid view
+  const gridView=`<div style="display:flex;flex-wrap:wrap;gap:10px">
+    ${sorted.map(a=>`
+      <div style="width:140px;border:1px solid var(--bdr);border-radius:8px;overflow:hidden;cursor:pointer;transition:box-shadow .15s"
+           onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow=''"
+           onclick="window.open('${proxyUrl(a)}','_blank')">
+        <div style="height:90px;background:var(--surf3);display:flex;align-items:center;justify-content:center;overflow:hidden">
+          ${isImg(a)?`<img src="${proxyUrl(a)}" style="max-width:100%;max-height:90px;object-fit:cover" onerror="this.parentElement.innerHTML='🖼️'" loading="lazy">`:
+            `<span style="font-size:32px">${getIcon(a)}</span>`}
+        </div>
+        <div style="padding:6px 8px">
+          <div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)" title="${a.filename}">${a.filename}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmtSize(a.size||0)}</div>
+          <div style="font-size:10px;color:var(--muted)">${a.created||''}</div>
+          <a href="${proxyUrl(a)}" download="${a.filename}" onclick="event.stopPropagation()"
+             style="display:inline-block;margin-top:4px;font-size:10px;color:var(--acc);text-decoration:none">⬇ 下載</a>
+        </div>
+      </div>`).join('')}
+  </div>`;
+
+  // List view
+  const listView=`<div style="display:flex;flex-direction:column;gap:2px">
+    ${sorted.map(a=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;transition:background .1s"
+           onmouseover="this.style.background='var(--surf3)'" onmouseout="this.style.background=''"
+           onclick="window.open('${proxyUrl(a)}','_blank')">
+        <span style="font-size:20px;flex-shrink:0">${isImg(a)?'🖼️':getIcon(a)}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.filename}">${a.filename}</div>
+          <div style="font-size:10px;color:var(--muted)">${fmtSize(a.size||0)} · ${a.created||''}</div>
+        </div>
+        <a href="${proxyUrl(a)}" download="${a.filename}" onclick="event.stopPropagation()"
+           style="font-size:11px;color:var(--acc);text-decoration:none;flex-shrink:0;padding:3px 8px;border:1px solid var(--bdr);border-radius:5px">⬇</a>
+      </div>`).join('')}
+  </div>`;
+
+  el.innerHTML=toolbar+(_attView==='grid'?gridView:listView);
+}
+
 async function loadAttachments(key){
   const el=document.getElementById('m-attachments-content');if(!el) return;
-  el.innerHTML='<div style="color:var(--muted);font-size:12px">載入中...</div>';
+  el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">載入中...</div>';
   try{
     const attachments=await fetch(`${SERVER}/issue/${key}/attachments`).then(r=>r.json());
     if(!attachments||!attachments.length){
       el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">無附件</div>';return;
     }
-    const fmtSize=b=>b>1048576?`${(b/1048576).toFixed(1)}MB`:b>1024?`${(b/1024).toFixed(0)}KB`:`${b}B`;
-    const isImg=a=>a.mimeType?.startsWith('image/');
-    const isPdf=a=>a.mimeType?.includes('pdf');
-    const proxyUrl=a=>`${SERVER}${a.content}`;
-    el.innerHTML=`
-      <div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 0">
-        ${attachments.map(a=>`
-          <div style="width:140px;border:1px solid var(--bdr);border-radius:8px;overflow:hidden;cursor:pointer"
-               onclick="window.open('${proxyUrl(a)}','_blank')">
-            <div style="height:90px;background:var(--surf3);display:flex;align-items:center;justify-content:center;overflow:hidden">
-              ${isImg(a)
-                ?`<img src="${proxyUrl(a)}" style="max-width:100%;max-height:90px;object-fit:cover"
-                      onerror="this.parentElement.innerHTML='🖼️'" loading="lazy">`
-                :`<span style="font-size:32px">${isPdf(a)?'📄':a.mimeType?.includes('zip')?'🗜️':a.mimeType?.includes('sheet')||a.mimeType?.includes('excel')?'📊':a.mimeType?.includes('word')?'📝':'📎'}</span>`
-              }
-            </div>
-            <div style="padding:6px 8px">
-              <div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)"
-                   title="${a.filename}">${a.filename}</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmtSize(a.size||0)} · ${a.created||''}</div>
-              <a href="${proxyUrl(a)}" download="${a.filename}"
-                 onclick="event.stopPropagation()"
-                 style="display:inline-block;margin-top:4px;font-size:10px;color:var(--acc);text-decoration:none">⬇ 下載</a>
-            </div>
-          </div>`).join('')}
-      </div>`;
+    _attData=attachments;
+    _attKey=key;
+    renderAttachments();
   }catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:12px">載入失敗：${e.message}</div>`;}
 }
 
