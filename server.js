@@ -82,7 +82,7 @@ function json(res, data, status=200) {
   res.end(JSON.stringify(data));
 }
 
-const CACHE_TTL = { projects:10*60*1000, boards:10*60*1000, epics:5*60*1000, meta:5*60*1000, statuses:10*60*1000, tickets:5*60*1000, issue:2*60*1000 };
+const CACHE_TTL = { projects:10*60*1000, boards:10*60*1000, epics:2*60*1000, meta:5*60*1000, statuses:10*60*1000, tickets:5*60*1000, issue:2*60*1000 };
 
 async function fetchAllAssignees(project) {
   let all=[], startAt=0;
@@ -182,11 +182,10 @@ const server = http.createServer(async (req, res) => {
   // /issue/:key GET
   if(req.method==='GET'&&p.startsWith('/issue/')&&!p.includes('/transition')&&!p.includes('/comment')&&!p.includes('/subtask')&&!p.includes('/attachments')&&!p.includes('/changelog')&&!p.includes('/watchers')&&!p.includes('/timetrack')&&!p.includes('/related')&&!p.includes('/activity')&&!p.includes('/worklog')&&!p.includes('/reactions')&&!p.includes('/votes')){
     const key=p.replace('/issue/','');
-    const c=cacheGet(`issue:${key}`,CACHE_TTL.issue);
-    if(c){json(res,c);return;}
+    // Always fetch fresh issue data - no caching to avoid stale status/transitions
     try{
       const d=await jiraFetch(`/rest/api/3/issue/${key}?fields=summary,description,status,assignee,reporter,issuetype,priority,duedate,updated,created,comment,subtasks,parent,issuelinks,labels`);
-      cacheSet(`issue:${key}`,d); json(res,d);
+      json(res,d);
     }catch(e){json(res,{error:e.message},500);}
     return;
   }
@@ -364,7 +363,7 @@ const server = http.createServer(async (req, res) => {
     const{boardId=''}=parsed.query;
     if(!boardId){json(res,[]);return;}
     const ck=`sprints:${boardId}`;
-    const c=cacheGet(ck,10*60*1000);
+    const c=cacheGet(ck,3*60*1000);
     if(c){json(res,c);return;}
     try{
       const d=await jiraFetch(`/rest/agile/1.0/board/${boardId}/sprint?state=active,future&maxResults=20`);
@@ -511,7 +510,8 @@ const server = http.createServer(async (req, res) => {
       };
       const r=await jiraRequest('POST','/rest/api/3/issueLink',linkBody);
       cacheDel(`issue:${key}`);
-      json(res,{ok:r.status===201||r.status===200});
+      const linkedKey=body.inwardKey||body.outwardKey;
+      if(linkedKey&&linkedKey!==key) cacheDel(`issue:${linkedKey}`);
     }catch(e){json(res,{error:e.message},500);}
     return;
   }
@@ -800,7 +800,7 @@ const server = http.createServer(async (req, res) => {
       const fields={'customfield_10016':points};
       const r=await jiraRequest('PUT',`/rest/api/3/issue/${key}`,{fields:{'customfield_10016':points}});
       cacheDel(`issue:${key}`);
-      json(res,{ok:r.status===204||r.status===200});
+      cacheDel(`issue:${key}`); cacheDel('tickets:');
     }catch(e){json(res,{error:e.message},500);}
     return;
   }
