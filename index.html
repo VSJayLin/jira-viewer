@@ -2972,6 +2972,9 @@ async function saveModal(key){
       }
       addHistory('修改 ticket',`Summary/Assignee/DueDate`,key);
       vApply();
+      // Unlock modal and clear stale cache
+      unlockModal();
+      _preloadCache.delete(key);
       setTimeout(()=>{btn.textContent='💾 儲存變更';btn.disabled=false;btn.classList.add('hidden');},2000);
     }else throw new Error('儲存失敗');
   }catch(e){btn.textContent='❌ 失敗';btn.disabled=false;setTimeout(()=>{btn.textContent='💾 儲存變更';},2000);}
@@ -3085,7 +3088,7 @@ document.getElementById('modalOv').addEventListener('mouseup', e => {
   modalMousedownOnOverlay = false;
 });
 function closeModalOv(e){}
-function closeModal(){document.getElementById('modalOv').classList.add('hidden');document.title=vProj?`JIRA Tools — ${vProj}`:'JIRA Tools';}
+function closeModal(){document.getElementById('modalOv').classList.add('hidden');document.title=vProj?`JIRA Tools — ${vProj}`:'JIRA Tools';unlockModal();}
 document.addEventListener('keydown',e=>{
   const inInput=e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT';
   const modalOpen=!document.getElementById('modalOv').classList.contains('hidden');
