@@ -198,10 +198,20 @@ const server = http.createServer(async (req, res) => {
       const body=await readBody(req);
       const fields={};
       if(body.summary!==undefined)    fields.summary=body.summary;
-      if(body.description!==undefined&&body.description!==null) fields.description={type:'doc',version:1,content:[{type:'paragraph',content:[{type:'text',text:body.description}]}]};
+      if(body.description!==undefined){
+        if(body.description===null||body.description===''){
+          // Explicitly clear description in Jira
+          fields.description=null;
+        } else {
+          fields.description={type:'doc',version:1,content:[{type:'paragraph',content:[{type:'text',text:body.description}]}]};
+        }
+      }
       if(body.assignee!==undefined)   fields.assignee=body.assignee?{accountId:body.assignee}:null;
       if(body.duedate!==undefined)    fields.duedate=body.duedate||null;
-      if(body.priority!==undefined&&body.priority)   fields.priority={name:body.priority};
+      if(body.priority!==undefined){
+        if(body.priority===null||body.priority==='') fields.priority=null;
+        else fields.priority={name:body.priority};
+      }
       if(body.labels!==undefined)     fields.labels=body.labels;
       const r=await jiraRequest('PUT',`/rest/api/3/issue/${key}`,{fields});
       cacheDel(`issue:${key}`); cacheDel('tickets:');
@@ -787,7 +797,7 @@ const server = http.createServer(async (req, res) => {
     try{
       const body=await readBody(req);
       const points=parseFloat(body.points)||0;
-      const fields={'customfield_10016':points,'story_points':points};
+      const fields={'customfield_10016':points};
       const r=await jiraRequest('PUT',`/rest/api/3/issue/${key}`,{fields:{'customfield_10016':points}});
       cacheDel(`issue:${key}`);
       json(res,{ok:r.status===204||r.status===200});
