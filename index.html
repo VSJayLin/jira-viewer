@@ -9483,15 +9483,7 @@ async function renderChangelog(){await renderChangelogTimeline();}
 
 // ── Override vApply final v24 ──
 function vApply(){
-  // DEBUG: Log status names with non-standard chars
-if(window._debugStatus!==true){
-  window._debugStatus=true;
-  const badStatuses=vAll.filter(i=>/[^ -一-鿿]/.test(i.status));
-  if(badStatuses.length>0){
-    console.warn('[STATUS DEBUG] Non-standard chars in status:', badStatuses.map(i=>({key:i.key,status:i.status,codes:[...i.status].map(c=>c.codePointAt(0).toString(16))})));
-  }
-}
-// ── UNIFIED vApply: filter, sort, render ──
+  // ── UNIFIED vApply: filter, sort, render ──
   if(!vAll.length){
     document.getElementById('tbody').innerHTML='<tr><td colspan="15"><div class="state-box">請先選擇專案載入 tickets</div></td></tr>';
     document.getElementById('footerText').textContent='';
