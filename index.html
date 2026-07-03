@@ -782,7 +782,7 @@ table.xl-tbl tr:last-child td{border-bottom:none;}
 .chart-modal{position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:300;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
 .chart-box{background:var(--surf);border-radius:12px;padding:24px;width:min(760px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.14);max-height:90vh;overflow-y:auto;}
 /* ── Sub-task count badge ── */
-.sub-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;background:var(--surf3,#f0f2f5);border:1px solid var(--bdr);border-radius:8px;font-size:9px;font-weight:600;color:var(--muted);margin-left:4px;padding:0 3px;vertical-align:middle;}
+.sub-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;background:var(--acc-l,#ebf1ff);border:1px solid var(--acc);border-radius:8px;font-size:9px;font-weight:700;color:var(--acc);margin-left:4px;padding:0 4px;vertical-align:middle;cursor:pointer;}
 /* ── Markdown preview ── */
 .md-preview{background:var(--surf3);border:1px solid var(--bdr);border-radius:6px;padding:10px 12px;font-size:12px;line-height:1.7;max-height:200px;overflow-y:auto;}
 .md-preview h1,.md-preview h2,.md-preview h3{font-size:13px;font-weight:600;margin-bottom:4px;color:var(--dim);}
@@ -2218,7 +2218,7 @@ function vRenderTable(data){
       <td class="td-key" onclick="event.stopPropagation()"><a href="${i.url}" target="_blank">${i.key}</a></td>
       <td class="td-sum" title="${i.summary.replace(/"/g,'&quot;')}">
         <span class="sum-text">${hlText(i.summary)}</span>
-        ${i.subtaskCount>0?`<span class="sub-badge">${i.subtaskCount}</span>`:''}
+        ${i.subtaskCount>0?`<span class="sub-badge" title="${i.subtaskCount} 個子任務（點擊展開）" onclick="event.stopPropagation();toggleExpand('${i.key}')">⎇ ${i.subtaskCount}</span>`:''}
         <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditSum(\'${i.key}\',this.closest(\'td\'))" title="編輯">✏</span><button class="cm-btn" onclick="event.stopPropagation();showColorMarkPicker(\'${i.key}\',this)" title="標記顏色">🎨</button>
       </td>
       <td data-col="status" style="${visCols.has('status')?'':'display:none'}">
@@ -2573,7 +2573,7 @@ function _renderModalBase(issue,transitions,meta,allStatuses=[]){
         </div>
       </div>
       ${links.length?`<div class="msec"><div class="msec-title">Linked Issues (${links.length})</div><div class="mlinks">${links.map(l=>{const li=l.inwardIssue||l.outwardIssue;const lt=l.inwardIssue?l.type?.inward:l.type?.outward;return`<div class="mlink-item"><span class="mlink-type">${lt||''}</span><a href="https://${JIRA_DOMAIN}/browse/${li?.key}" target="_blank" style="color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500">${li?.key||''}</a><span style="color:var(--dim);font-size:11px">${li?.fields?.summary||''}</span></div>`;}).join('')}</div></div>`:''}
-      ${subtasks.length?`<div class="msec"><div class="msec-title">Sub-tasks (${subtasks.length}) <button onclick="loadSubtaskDetails('${issue.key}')" style="font-size:10px;color:var(--acc);border:none;background:none;cursor:pointer;font-weight:500;margin-left:6px;font-family:'Inter',sans-serif">✏ 詳細編輯</button></div><div id="m-subtask-detail" style="margin-top:4px"></div><div class="msubtasks">${subtasks.map(s=>`<div class="msub-item"><a href="https://${JIRA_DOMAIN}/browse/${s.key}" target="_blank" style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;color:var(--acc)">${s.key}</a><span style="color:var(--dim)">${s.fields?.summary||''}</span><span class="badge ${bCls(s.fields?.status?.statusCategory?.key||'')}" style="margin-left:auto;font-size:9px">${s.fields?.status?.name||''}</span></div>`).join('')}</div></div>`:''}
+      ${subtasks.length?`<div class="msec"><div class="msec-title">Sub-tasks (${subtasks.length}) <button onclick="loadSubtaskDetails('${issue.key}')" style="font-size:10px;color:var(--acc);border:none;background:none;cursor:pointer;font-weight:500;margin-left:6px;font-family:'Inter',sans-serif">✏ 詳細編輯</button></div><div id="m-subtask-detail" style="margin-top:4px"></div><div class="msubtasks">${subtasks.map(s=>`<div class="msub-item"><a href="https://${JIRA_DOMAIN}/browse/${s.key}" target="_blank" style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;color:var(--acc)">${s.key}</a><button onclick="event.stopPropagation();closeModal();setTimeout(()=>openModal('${s.key}'),100)" style="margin-left:4px;border:none;background:transparent;color:var(--acc);font-size:10px;cursor:pointer;padding:0;font-family:'Inter',sans-serif" title="在工具中開啟">↗</button><span style="color:var(--dim)">${s.fields?.summary||''}</span><span class="badge ${bCls(s.fields?.status?.statusCategory?.key||'')}" style="margin-left:auto;font-size:9px">${s.fields?.status?.name||''}</span></div>`).join('')}</div></div>`:''}
       <div class="msec">
         <div class="msec-title">新增 Sub-task</div>
         <div class="mform">
@@ -3443,14 +3443,33 @@ function toggleExpand(key){
   if(existing){existing.remove();if(btn)btn.textContent='▶';expandedKeys.delete(key);return;}
   expandedKeys.add(key);if(btn)btn.textContent='▼';
   const expTr=document.createElement('tr');expTr.id='exp-'+key;
-  expTr.innerHTML=`<td colspan="12" style="background:#f8f9ff;font-size:11px;color:var(--dim);padding:6px 12px 8px 52px;line-height:1.6"><span style="color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500">${key}</span> <span style="color:var(--muted)">載入中...</span></td>`;
+  expTr.innerHTML=`<td colspan="20" style="background:#f8f9ff;padding:6px 12px 8px 52px;border-bottom:1px solid var(--bdr)">
+    <span style="font-size:11px;color:var(--muted)">載入子任務中...</span></td>`;
   tr.after(expTr);
   fetch(`${SERVER}/issue/${key}`).then(r=>r.json()).then(data=>{
-    const desc=extractText(data.fields?.description)||'（無描述）';
-    expTr.querySelector('td').innerHTML=`<span style="color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500">${key}</span> <span style="color:var(--dim)">${desc.slice(0,300).replace(/</g,'&lt;')}${desc.length>300?'...':''}</span>`;
-  }).catch(()=>{});
+    const subtasks=data.fields?.subtasks||[];
+    const td=expTr.querySelector('td');
+    if(!subtasks.length){
+      td.innerHTML=`<span style="font-size:11px;color:var(--muted)">無子任務</span>`;
+      return;
+    }
+    td.innerHTML=`<div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:2px">子任務（${subtasks.length}）</div>
+      ${subtasks.map(s=>{
+        const sCat=s.fields?.status?.statusCategory?.key||'';
+        const sColor=sCat==='done'?'var(--success)':sCat==='indeterminate'?'var(--warn)':'var(--muted)';
+        const prioColor={'Highest':'#ff5630','High':'#ff7452','Medium':'#ffab00','Low':'#2684ff','Lowest':'#2684ff'}[s.fields?.priority?.name]||'var(--muted)';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:white;border:1px solid var(--bdr);border-radius:6px;cursor:pointer"
+          onclick="event.stopPropagation();openModal('${s.key}')">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--acc);min-width:56px">${s.key}</span>
+          <span style="font-size:11px;color:var(--dim);flex:1">${s.fields?.summary||''}</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:#f4f5f7;color:${sColor};border:1px solid ${sColor}22">${s.fields?.status?.name||''}</span>
+          <span style="font-size:10px;color:${prioColor};font-weight:600">${s.fields?.priority?.name||''}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).catch(()=>{expTr.querySelector('td').innerHTML='<span style="font-size:11px;color:var(--danger)">載入失敗</span>';});
 }
-
 // ── Inline edit: Status (item 6) ──
 async function inlineEditStatus(key,el){
   const td=el?.closest('td');if(!td) return;
@@ -3634,7 +3653,7 @@ function loadMoreRows(){
         <td class="td-key" onclick="event.stopPropagation()"><a href="${i.url}" target="_blank">${i.key}</a></td>
         <td class="td-sum" title="${i.summary.replace(/"/g,'&quot;')}">
           <span class="sum-text">${i.summary.replace(/</g,'&lt;')}</span>
-          ${i.subtaskCount>0?`<span class="sub-badge">${i.subtaskCount}</span>`:''}
+          ${i.subtaskCount>0?`<span class="sub-badge" title="${i.subtaskCount} 個子任務（點擊展開）" onclick="event.stopPropagation();toggleExpand('${i.key}')">⎇ ${i.subtaskCount}</span>`:''}
           <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditSum('${i.key}',this.closest('td'))" title="編輯">✏</span>
         </td>
         <td data-col="status" style="${visCols.has('status')?'':'display:none'}">
@@ -7315,7 +7334,7 @@ function vRenderTableRAF(data){
         <td class="td-key" onclick="event.stopPropagation()"><a href="${item.url}" target="_blank">${item.key}</a></td>
         <td class="td-sum" title="${item.summary.replace(/"/g,'&quot;')}">
           <span class="sum-text">${hlText(item.summary)}</span>
-          ${item.subtaskCount>0?`<span class="sub-badge">${item.subtaskCount}</span>`:''}
+          ${item.subtaskCount>0?`<span class="sub-badge" title="${item.subtaskCount} 個子任務（點擊展開）" onclick="event.stopPropagation();toggleExpand('${item.key}')">⎇ ${item.subtaskCount}</span>`:''}
           <span class="sum-edit-btn" onclick="event.stopPropagation();inlineEditSum('${item.key}',this.closest('td'))" title="編輯">✏</span>
           <button class="cm-btn" onclick="event.stopPropagation();showColorMarkPicker('${item.key}',this)" title="標記顏色">🎨</button>
         </td>
