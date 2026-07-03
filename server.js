@@ -173,6 +173,7 @@ const server = http.createServer(async (req, res) => {
           pageToken=d.nextPageToken;
         }
       }
+      all.forEach(i=>{const nm=i.fields?.status?.name||'';const codes=[...nm].map(c=>c.codePointAt(0));if(codes.some(c=>c>0x9fff)){console.log('[STATUS_DEBUG]',i.key,JSON.stringify(nm),[...nm].map(c=>c.codePointAt(0).toString(16)).join(' '));}});
       cacheSet(ck,all);
       json(res,{issues:all,total:all.length,cached:false});
     }catch(e){json(res,{error:e.message,issues:[]},500);}
