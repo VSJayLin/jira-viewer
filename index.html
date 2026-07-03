@@ -8567,12 +8567,12 @@ function reconcileTable(newData){
       if(asgnTd&&asgnTd.textContent.trim().replace(/✏$/,'').trim()!==item.assignee){asgnTd.childNodes[asgnTd.childNodes.length-1].textContent=item.assignee||'未指派';}
       // Move to correct position
       const currentIdx=[...tbody.children].indexOf(existingRow);
-      if(currentIdx!==idx){const ref=tbody.children[idx]||null;if(ref!==existingRow)tbody.insertBefore(existingRow,ref);}
+      if(currentIdx!==idx){const ref=tbody.children[idx]||null;if(ref!==existingRow&&(!ref||ref.parentNode===tbody))tbody.insertBefore(existingRow,ref);}
     }else{
       // Build new row and insert
       const frag=document.createDocumentFragment();
       vRenderTableRAF([item]);// This appends to tbody; reorder below
-      const newRow=tbody.lastElementChild;if(newRow&&newRow.id===`tr-${item.key}`){const ref=tbody.children[idx]||null;tbody.insertBefore(newRow,ref);}
+      const newRow=tbody.lastElementChild;if(newRow&&newRow.id===`tr-${item.key}`){const ref=tbody.children[idx]||null;if(!ref||ref.parentNode===tbody)tbody.insertBefore(newRow,ref);}
     }
   });
 }
@@ -9483,7 +9483,15 @@ async function renderChangelog(){await renderChangelogTimeline();}
 
 // ── Override vApply final v24 ──
 function vApply(){
-  // ── UNIFIED vApply: filter, sort, render ──
+  // DEBUG: Log status names with non-standard chars
+if(window._debugStatus!==true){
+  window._debugStatus=true;
+  const badStatuses=vAll.filter(i=>/[^ -一-鿿]/.test(i.status));
+  if(badStatuses.length>0){
+    console.warn('[STATUS DEBUG] Non-standard chars in status:', badStatuses.map(i=>({key:i.key,status:i.status,codes:[...i.status].map(c=>c.codePointAt(0).toString(16))})));
+  }
+}
+// ── UNIFIED vApply: filter, sort, render ──
   if(!vAll.length){
     document.getElementById('tbody').innerHTML='<tr><td colspan="15"><div class="state-box">請先選擇專案載入 tickets</div></td></tr>';
     document.getElementById('footerText').textContent='';
