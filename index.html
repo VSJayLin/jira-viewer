@@ -2969,6 +2969,7 @@ async function saveModal(key){
         item.summary=summary;
         item.duedate=duedate||'—';
         item.priority=priority||item.priority;
+        if(item.fields) item.fields.description=desc?{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:desc}]}]}:null;
       }
       addHistory('修改 ticket',`Summary/Assignee/DueDate`,key);
       vApply();
@@ -4025,15 +4026,11 @@ function setupVirtualScroll(){
 // ── 2. Modal preload ──
 const _preloadCache=new Map();
 async function preloadModal(key){
-  if(_preloadCache.has(key)) return;
+  // Only preload meta (stable). Issue data is always fetched fresh on open.
+  if(_preloadCache.has(key)&&_preloadCache.get(key).meta) return;
   try{
-    const[issue,transitions,meta,allStatuses]=await Promise.all([
-      fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
-      fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
-      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null),
-      vProj?fetch(`${SERVER}/statuses?project=${vProj}`).then(r=>r.json()).catch(()=>[]):Promise.resolve([])
-    ]);
-    _preloadCache.set(key,{issue,transitions,meta});
+    const meta=vProj?await fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):null;
+    _preloadCache.set(key,{meta});
   }catch(e){}
 }
 // Override _openModal to use preload cache
@@ -4047,24 +4044,18 @@ async function _openModal(key){
   document.getElementById('mNext').disabled=modalIdx>=modalList.length-1;
   document.getElementById('mNavInfo').textContent=modalList.length?`${modalIdx+1}/${modalList.length}`:'';
   document.title=`${key} — JIRA Tools`;
-  // Check preload cache
-  if(_preloadCache.has(key)){
-    const{issue,meta}=_preloadCache.get(key);
-    const freshTrans=await fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]);
-    renderModal(issue,freshTrans,meta,[]);
-    if(modalIdx+1<modalList.length) preloadModal(modalList[modalIdx+1]);
-    if(modalIdx-1>=0) preloadModal(modalList[modalIdx-1]);
-    return;
-  }
+  // Always fetch fresh issue + transitions (never use stale cache for issue data)
   document.getElementById('mBody').innerHTML='<div class="mloading"><div class="v-spin"></div>載入中...</div>';
   try{
+    // Use preload cache for meta only (stable data), always fresh for issue+transitions
+    const cachedMeta=_preloadCache.get(key)?.meta||null;
     const[issue,transitions,meta]=await Promise.all([
       fetch(`${SERVER}/issue/${key}`).then(r=>r.json()),
       fetch(`${SERVER}/transitions/${key}`).then(r=>r.json()).catch(()=>[]),
-      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null),
-      vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
+      cachedMeta?Promise.resolve(cachedMeta):
+        vProj?fetch(`${SERVER}/meta?project=${vProj}`).then(r=>r.json()).catch(()=>null):Promise.resolve(null)
     ]);
-    _preloadCache.set(key,{issue,meta});
+    _preloadCache.set(key,{meta});
     renderModal(issue,transitions,meta,[]);
     if(modalIdx+1<modalList.length) preloadModal(modalList[modalIdx+1]);
     if(modalIdx-1>=0) preloadModal(modalList[modalIdx-1]);
